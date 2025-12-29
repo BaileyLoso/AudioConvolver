@@ -4,11 +4,9 @@ from scipy.signal import fftconvolve, resample
 import tkinter as tk
 from tkinter import messagebox as mbox
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pygame
-from pygame.locals import *
-
+import tempfile
+import os
 
 
 
@@ -35,7 +33,6 @@ class MainWindow:
             try:
                 convolver = AudioConvolver(audio_in, ir_in)
                 output_audio = convolver.convolve(audio_in, ir_in)
-                # convolver.save_output(output_audio)
                 return output_audio
             except AssertionError as e:
                 mbox.showerror("Error", str(e))
@@ -60,6 +57,7 @@ class MainWindow:
         def on_process():
             self.output_audio = process(audio_input, ir_input)
             self.export_button.config(state="normal")
+            self.display_waveform()
             return
         
         self.process_button = tk.Button(master, text="Process", command=on_process)
@@ -75,6 +73,64 @@ class MainWindow:
 
         self.status_label = tk.Label(master, text="")
         self.status_label.pack()
+
+        # Media player for output audio
+        self.canvas = tk.Canvas(master, height=100, bg='white')  # Canvas for waveform
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        self.play_button = tk.Button(master, text="Play Output", command=self.play_output)
+        self.play_button.pack()
+        self.cursor_id = None  # ID for cursor line
+
+
+    def play_output(self):
+        if hasattr(self, "output_audio") and self.output_audio.data.size > 0:
+            pygame.mixer.init()
+            # Save output_audio to a temp file for playback (pygame needs a file)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+            sf.write(temp_file.name, self.output_audio.data, self.output_audio.samplerate)
+            pygame.mixer.music.load(temp_file.name)
+            pygame.mixer.music.play()
+            
+            self.update_cursor()
+            # Clean up temp file after playback
+            os.unlink(temp_file.name)
+
+    def display_waveform(self):
+        self.canvas.delete("all")  # Clear canvas
+        if self.output_audio.data.size == 0:
+            return
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+        data = self.output_audio.data[:, 0]  # First channel
+        max_val = np.max(np.abs(data))
+        if max_val == 0:
+            return
+        data = data / max_val  # Normalize to -1 to 1
+        
+        # Downsample for performance
+        downsample_factor = max(1, len(data) // (width * 3))  # Ensure at least 1
+        data = data[::downsample_factor]
+        num_points = len(data)
+        step = width / num_points
+        points = []
+        for i in range(num_points):
+            x = i * step
+            y = height / 2 + (data[i] * height / 2)  # Center vertically
+            points.extend([x, y])
+        self.canvas.create_line(points, fill='blue', width=1)  # Draw waveform
+        # Draw cursor
+        self.cursor_id = self.canvas.create_line(0, 0, 0, height, fill='red', width=2)
+
+    def update_cursor(self):
+        if pygame.mixer.music.get_busy():
+            current_time = pygame.mixer.music.get_pos() / 1000.0
+            duration = len(self.output_audio.data) / self.output_audio.samplerate
+            if current_time >= 0 and current_time <= duration:
+                width = self.canvas.winfo_width()
+                x = (current_time / duration) * width
+                height = self.canvas.winfo_height()
+                self.canvas.coords(self.cursor_id, x, 0, x, height)
+            self.master.after(100, self.update_cursor)
 
 
 class AudioInput:
