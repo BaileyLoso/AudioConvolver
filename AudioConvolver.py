@@ -86,14 +86,17 @@ class MainWindow:
         if hasattr(self, "output_audio") and self.output_audio.data.size > 0:
             pygame.mixer.init()
             # Save output_audio to a temp file for playback (pygame needs a file)
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            sf.write(temp_file.name, self.output_audio.data, self.output_audio.samplerate)
-            pygame.mixer.music.load(temp_file.name)
-            pygame.mixer.music.play()
-            
-            self.update_cursor()
-            # Clean up temp file after playback
-            os.unlink(temp_file.name)
+            temp_fd, temp_file = tempfile.mkstemp(suffix='.wav')
+            os.close(temp_fd)  # Immediately close file descriptor
+
+            try:
+                sf.write(temp_file, self.output_audio.data, self.output_audio.samplerate)
+                pygame.mixer.music.load(temp_file)
+                pygame.mixer.music.play()
+                self.update_cursor()
+
+            except Exception as e:
+                mbox.showerror("Error", f"Failed to play output: {str(e)}")
 
     def display_waveform(self):
         self.canvas.delete("all")  # Clear canvas
@@ -125,7 +128,7 @@ class MainWindow:
         if pygame.mixer.music.get_busy():
             current_time = pygame.mixer.music.get_pos() / 1000.0
             duration = len(self.output_audio.data) / self.output_audio.samplerate
-            if current_time >= 0 and current_time <= duration:
+            if 0 <= current_time <= duration:
                 width = self.canvas.winfo_width()
                 x = (current_time / duration) * width
                 height = self.canvas.winfo_height()
