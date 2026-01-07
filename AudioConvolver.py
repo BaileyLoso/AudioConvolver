@@ -1,224 +1,203 @@
-import soundfile as sf
-import numpy as np
-from scipy.signal import fftconvolve, resample
-import tkinter as tk
-from tkinter import messagebox as mbox
-from tkinter.filedialog import askopenfilename, asksaveasfilename
-import pygame
-import tempfile
-import os
+import enum
 
+import numpy as np
+from PySide6.QtWidgets import QApplication, QMainWindow, QErrorMessage
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QIcon
+import pyqtgraph as pg
+from ui_form import Ui_MainWindow
+from audio_processing import AudioFile, AudioConvolver
+from AudioPlayback import AudioPlaybackManager, PlaybackArea
+from enum import Enum, auto
+
+
+class ButtonIcons:
+    PLAY = QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackStart)
+    PAUSE = QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackPause)
+
+
+def process(audio_in, ir_in):
+    if audio_in.file_path is None or ir_in.file_path is None:
+        return None  # No input files loaded
+    try:
+        convolver = AudioConvolver(audio_in, ir_in)
+        output_audio = convolver.convolve(audio_in, ir_in)
+        return output_audio
+    except AssertionError as e:
+        QErrorMessage(parent=None).showMessage(str(e))
+        return None
+
+
+def _setup_plot_widget(plot_widget):
+    plot_widget.showGrid(x=False, y=False)
+    plot_widget.hideAxis('left')
+    plot_widget.hideAxis('bottom')
 
 
 ### Main application window
-class MainWindow:
-    def __init__(self, master):
-        self.master = master
-        master.minsize(400, 200)
-        master.maxsize(1800, 900)
-        master.title("Audio Convolver")
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        # Set up UI from QT Creator and mixer
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
+        self.playback_manager = AudioPlaybackManager()
+
+        # Connect playback signals
+        self.playback_manager.position_updated.connect(self._on_position_updated)
+        self.playback_manager.playback_finished.connect(self._on_playback_finished)
 
         # Maintain copy of signals
-        audio_input_original = AudioInput()
-        ir_input_original = AudioInput()
-        audio_input = AudioInput()
-        ir_input = AudioInput()
-        self.output_audio = AudioInput()
+        self._audio_input_original = AudioFile()
+        self._ir_input_original = AudioFile()
+        self.audio_input = AudioFile()
+        self.ir_input = AudioFile()
+        self._output_audio = AudioFile()
+
+        # Set up plot widgets
+        _setup_plot_widget(self.ui.InputPeekWidget)
+        _setup_plot_widget(self.ui.IRPeekWidget)
+        _setup_plot_widget(self.ui.graphicsView)
+
+        # Initialize plot curves and cursors for each area
+        self.input_curve = self.ui.InputPeekWidget.plot(pen='b')
+        self.input_curve.setClipToView(True)
+        self.input_cursor = pg.InfiniteLine(pos=0, angle=90, pen=pg.mkPen(color='r', width=2))
 
 
-        def process(audio_in, ir_in):
-            if audio_in.file_path is None or ir_in.file_path is None:
-                mbox.showerror("Error", "Please select both input audio and impulse response files")
-                return
-            try:
-                convolver = AudioConvolver(audio_in, ir_in)
-                output_audio = convolver.convolve(audio_in, ir_in)
-                return output_audio
-            except AssertionError as e:
-                mbox.showerror("Error", str(e))
-                return
-
-        self.label = tk.Label(master, text="Select input audio and impulse response files:")
-        self.label.pack()
-        self.input_button = tk.Button(master, text="Select Input Audio", command = lambda: audio_input.load_file(audio_input_original))
-        self.input_button.pack()
-        self.input_gain_slider = tk.Scale(master, from_ = 100, to = 0, resolution = 1, orient = "vertical", 
-                                    command = lambda val: audio_input.adjust_gain(audio_input_original, float(val)))
-        self.input_gain_slider.set(50)
-        self.input_gain_slider.pack()
-
-        self.ir_button = tk.Button(master, text="Select Impulse Response", command = lambda: ir_input.load_file(ir_input_original))
-        self.ir_button.pack()
-        self.ir_gain_slider = tk.Scale(master, from_ = 100, to = 0, resolution= 1, orient = "vertical", 
-                                    command = lambda val: ir_input.adjust_gain(ir_input_original, float(val)))
-        self.ir_gain_slider.set(50)
-        self.ir_gain_slider.pack()
-
-        def on_process():
-            self.output_audio = process(audio_input, ir_input)
-            self.export_button.config(state="normal")
-            self.display_waveform()
-            return
-        
-        self.process_button = tk.Button(master, text="Process", command=on_process)
-        self.process_button.pack()
-
-        def on_export():
-            convolver = AudioConvolver(audio_input, ir_input)
-            convolver.save_output(self.output_audio)
-            return
-
-        self.export_button = tk.Button(master, text="Export Audio File", state="disabled", command=on_export)
-        self.export_button.pack()
-
-        self.status_label = tk.Label(master, text="")
-        self.status_label.pack()
-
-        # Media player for output audio
-        self.canvas = tk.Canvas(master, height=100, bg='white')  # Canvas for waveform
-        self.canvas.pack(fill=tk.BOTH, expand=True)
-        self.play_button = tk.Button(master, text="Play Output", command=self.play_output)
-        self.play_button.pack()
-        self.cursor_id = None  # ID for cursor line
+        self.ir_curve = self.ui.IRPeekWidget.plot(pen='b')
+        self.ir_curve.setClipToView(True)
+        self.ir_cursor = pg.InfiniteLine(pos=0, angle=90, pen=pg.mkPen(color='r', width=2))
 
 
-    def play_output(self):
-        if hasattr(self, "output_audio") and self.output_audio.data.size > 0:
-            pygame.mixer.init()
-            # Save output_audio to a temp file for playback (pygame needs a file)
-            temp_fd, temp_file = tempfile.mkstemp(suffix='.wav')
-            os.close(temp_fd)  # Immediately close file descriptor
-
-            try:
-                sf.write(temp_file, self.output_audio.data, self.output_audio.samplerate)
-                pygame.mixer.music.load(temp_file)
-                pygame.mixer.music.play()
-                self.update_cursor()
-
-            except Exception as e:
-                mbox.showerror("Error", f"Failed to play output: {str(e)}")
-
-    def display_waveform(self):
-        self.canvas.delete("all")  # Clear canvas
-        if self.output_audio.data.size == 0:
-            return
-        width = self.canvas.winfo_width()
-        height = self.canvas.winfo_height()
-        data = self.output_audio.data[:, 0]  # First channel
-        max_val = np.max(np.abs(data))
-        if max_val == 0:
-            return
-        data = data / max_val  # Normalize to -1 to 1
-        
-        # Downsample for performance
-        downsample_factor = max(1, len(data) // (width * 3))  # Ensure at least 1
-        data = data[::downsample_factor]
-        num_points = len(data)
-        step = width / num_points
-        points = []
-        for i in range(num_points):
-            x = i * step
-            y = height / 2 + (data[i] * height / 2)  # Center vertically
-            points.extend([x, y])
-        self.canvas.create_line(points, fill='blue', width=1)  # Draw waveform
-        # Draw cursor
-        self.cursor_id = self.canvas.create_line(0, 0, 0, height, fill='red', width=2)
-
-    def update_cursor(self):
-        if pygame.mixer.music.get_busy():
-            current_time = pygame.mixer.music.get_pos() / 1000.0
-            duration = len(self.output_audio.data) / self.output_audio.samplerate
-            if 0 <= current_time <= duration:
-                width = self.canvas.winfo_width()
-                x = (current_time / duration) * width
-                height = self.canvas.winfo_height()
-                self.canvas.coords(self.cursor_id, x, 0, x, height)
-            self.master.after(100, self.update_cursor)
+        self.output_curve = self.ui.graphicsView.plot(pen='b')
+        self.output_curve.setClipToView(True)
+        self.output_cursor = pg.InfiniteLine(pos=0, angle=90, pen=pg.mkPen(color='r', width=2))
 
 
-class AudioInput:
-    def __init__(self):
-        self.file_path = ""
-        self.data = np.empty(2)
-        self.samplerate = 0
-        self.channels = 0
+        # Map areas to their cursors
+        self._cursors = {
+            PlaybackArea.INPUT: self.input_cursor,
+            PlaybackArea.IR: self.ir_cursor,
+            PlaybackArea.OUTPUT: self.output_cursor,
+        }
 
-    def load_file(self, audio_copy):
-        self.file_path = askopenfilename(title="Select an audio file",
-                                         filetypes=[("WAV Files", "*.wav"), ("MP3 Files", "*.mp3"),
-                                                    ("FLAC Files", "*.flac"), ("AIFF Files", "*.aiff"), ("AU Files", "*.au"), ("CAF Files", "*.caf")])
-        if self.file_path is None or self.file_path == "":
-            mbox.showerror("Error", "No file selected")
-            return
-        try:
-            self.data, self.samplerate = sf.read(self.file_path, always_2d=True)
-        except Exception as e:
-            mbox.showerror("Error", f"Failed to read file: {str(e)}")
-            return
-        if self.data.size == 0:
-            mbox.showerror("Error", "Failed to load audio file")
-            return
-        self.channels = self.data.shape[1]
-        self.copy_data(audio_copy)
-        mbox.showinfo("Success", f"Loaded file: {self.file_path}")
+        # Connect signals to UI widgets
+        self.ui.inputFileButton.clicked.connect(self.load_input_audio)
+        self.ui.IRFileButton.clicked.connect(self.load_ir_audio)
+        self.ui.outputPlayButton.clicked.connect(self._toggle_output_playback)
+        self.ui.inputPlayButton.clicked.connect(self._toggle_input_playback)
+        self.ui.IRPlayButton.clicked.connect(self._toggle_ir_playback)
+        self.ui.clearButton.clicked.connect(self.clear_inputs)
 
-    def copy_data(self, dst):
-        dst.file_path = self.file_path
-        dst.data = self.data
-        dst.samplerate = self.samplerate
-        dst.channels = self.channels
 
-    def adjust_gain(self, original, gain_val):
-        if self.data.size == 0 or original.data.size == 0:
-            return
-        gain_val = gain_val * 2
-        self.data = original.data * gain_val
-        self.data = np.clip(self.data, -1, 1)
+    def _toggle_icon(self, playback_area, button):
+        if self.playback_manager.is_playing(playback_area):
+            button.setIcon(ButtonIcons.PAUSE)
+        else:
+            button.setIcon(ButtonIcons.PLAY)
         return
-        
 
-### This is where we will handle audio processing
-class AudioConvolver:
-    def __init__(self, input_audio, impulse_response):
-        self.input_audio_path = input_audio.file_path
-        self.impulse_response_path = impulse_response.file_path
-        self.output_audio_path = "output.wav"
 
-    @staticmethod
-    def convolve(input_audio, impulse_response):
-        output_audio = AudioInput()
-
-        if input_audio.samplerate != impulse_response.samplerate:
-            num_samples_new = int(impulse_response.data.shape[0] * input_audio.samplerate / impulse_response.samplerate)
-            impulse_response.data = resample(impulse_response.data, num_samples_new, axis=0)
-            impulse_response.samplerate = input_audio.samplerate
-
-        # Fill in data fields for audio
-        output_audio.data = fftconvolve(input_audio.data, impulse_response.data, mode='full', axes=0)
-        output_audio.samplerate = input_audio.samplerate
-
-        # Calling shape() on 2nd element finds number of channels
-        output_audio.channels = output_audio.data.shape[1]
-
-        if output_audio.channels > 2:
-            output_audio.data = output_audio.data[:, :2]  # Keep only first two channels if more than 2 channels
-
-        # 1.0 is max amplitude for audio files
-        if np.max(np.abs(output_audio.data)) > 1.0:
-            output_audio.data = output_audio.data / np.max(np.abs(output_audio.data))  # Normalize to prevent clipping
-        return output_audio
-
-    def save_output(self, output_audio):
-        self.output_audio_path = asksaveasfilename(title="Save output audio file", defaultextension=".wav",
-                                                   filetypes=[("WAV Files", "*.wav"), ("MP3 Files", "*.mp3"),
-                                                              ("FLAC Files", "*.flac")])
-        if self.output_audio_path is None or self.output_audio_path == "":
-            mbox.showerror("Error", "No file selected for saving")
+    def _toggle_input_playback(self):
+        if self.audio_input.file_path == "":
             return
-        sf.write(self.output_audio_path, output_audio.data, output_audio.samplerate)
-        mbox.showinfo("Success", f"Saved output file: {self.output_audio_path}")
+        self.playback_manager.toggle_play_pause(self.audio_input, PlaybackArea.INPUT, self)
+        self._toggle_icon(PlaybackArea.INPUT, self.ui.inputPlayButton)
+
+    def _toggle_ir_playback(self):
+        if self.ir_input.file_path == "":
+            return
+        self.playback_manager.toggle_play_pause(self.ir_input, PlaybackArea.IR, self)
+        self._toggle_icon(PlaybackArea.IR, self.ui.IRPlayButton)
+
+    def _toggle_output_playback(self):
+        if self.audio_input.file_path == "" or self.ir_input.file_path == "":
+            return
+        self.playback_manager.toggle_play_pause(self._output_audio, PlaybackArea.OUTPUT, self)
+        if self.playback_manager.is_playing(PlaybackArea.OUTPUT):
+            self.ui.outputPlayButton.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackPause))
+        else:
+            self.ui.outputPlayButton.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackStart))
 
 
-root = tk.Tk()
-MainWindow(root)
-root.mainloop()
+    def _on_position_updated(self, area: PlaybackArea, position: float):
+        cursor = self._cursors.get(area)
+        audio_map = {PlaybackArea.INPUT: self.audio_input,
+                     PlaybackArea.IR: self.ir_input,
+                     PlaybackArea.OUTPUT: self._output_audio}
+        audio = audio_map.get(area)
+        if not cursor or not audio or audio.data.size == 0:
+            return
+        duration = len(audio.data) / audio.samplerate
+        position = max(0.0, min(position, duration))
+
+        cursor.setValue(position)
+
+    def _on_playback_finished(self, area: PlaybackArea):
+        cursor = self._cursors.get(area)
+        if cursor:
+            cursor.setValue(0)
+
+    def clear_inputs(self):
+        self.playback_manager.stop_all()
+        self._audio_input_original.clear()
+        self._ir_input_original.clear()
+        self.audio_input.clear()
+        self.ir_input.clear()
+        self._output_audio.clear()
+        # Reset all cursors
+        for cursor in self._cursors.values():
+            cursor.setValue(0)
+
+    def load_input_audio(self):
+        self.audio_input.load_file(self._audio_input_original)
+        self.display_waveform(self.input_curve, self.audio_input.data,
+                              self.audio_input.samplerate)
+        self.ui.InputPeekWidget.addItem(self.input_cursor)
+        # if getattr(self, "ir_input", None) is not None:
+        #     self.convolve()
+
+    def load_ir_audio(self):
+        self.ir_input.load_file(self._ir_input_original)
+        self.display_waveform(self.ir_curve, self.ir_input.data, self.ir_input.samplerate)
+        self.ui.IRPeekWidget.addItem(self.ir_cursor)
+        if getattr(self, "audio_input", None) is not None:
+            self.convolve()
+
+    def convolve(self):
+        self._output_audio = process(self.audio_input, self.ir_input)
+        self.display_waveform(self.output_curve, self._output_audio.data,
+                              self._output_audio.samplerate)
+        self.ui.graphicsView.addItem(self.output_cursor)
+
+    # def start_audio_playback(self):
+    #     self.playback_manager.play_output_audio(self._output_audio, self)
+
+    def display_waveform(self, curve, audio_data, samplerate):
+        if audio_data.size == 0:
+            return
+        data = audio_data[:, 0]
+        duration = len(data) / samplerate
+
+        # Normalize to -1 to 1
+        max_val = np.max(np.abs(data))
+        if max_val > 1:
+            data = data / max_val
+
+        time_axis = np.linspace(0, duration, len(data))
+        curve.setData(time_axis, data)
+        curve.setDownsampling(ds=30, method='mean')
+        curve.updateItems()
+
+    def closeEvent(self, event):
+        self.playback_manager.cleanup()
+        super().closeEvent(event)
+
+
+if __name__ == "__main__":
+    app = QApplication([])
+    window = MainWindow()
+    window.show()
+    app.exec()
