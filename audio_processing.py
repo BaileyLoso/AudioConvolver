@@ -11,12 +11,13 @@ class AudioFile:
         self.data = np.empty(2)
         self.samplerate = 0
         self.channels = 0
+        self.peak = 0.0
 
     def __repr__(self):
         return f"AudioFile(file_path='{self.file_path}', samplerate={self.samplerate}, channels={self.channels})"
 
-    def __eq__(self, other):
-        return self.file_path == other.file_path
+    # def __eq__(self, other):
+    #     return self.file_path == other.file_path
 
     def load_file(self, audio_copy):
         self.file_path, _ = QFileDialog.getOpenFileName(None, "Select audio file", "", "Audio Files (*.wav *.mp3 *.flac)")
@@ -26,6 +27,7 @@ class AudioFile:
             try:
                 self.data, self.samplerate = sf.read(self.file_path, always_2d=True)
                 self.channels = self.data.shape[1]
+                self.peak = np.max(np.abs(self.data))
                 self.copy_data(audio_copy)
             except Exception as e:
                 QErrorMessage(parent=None).showMessage(str(e))
@@ -38,17 +40,21 @@ class AudioFile:
 
     def copy_data(self, dst):
         dst.file_path = self.file_path
-        dst.data = self.data
+        dst.data = np.copy(self.data)
         dst.samplerate = self.samplerate
         dst.channels = self.channels
+        dst.peak = self.peak
 
-    def adjust_gain(self, original, gain_val):
-        if self.data.size == 0 or original.data.size == 0:
-            return
-        gain_val = gain_val * 2
-        self.data = original.data * gain_val
+    def adjust_gain(self, original_audio, db_val):
+        if self.data.size == 0 or original_audio.data.size == 0:
+            return 0
+        if db_val == 0:
+            return 0
+        linear_gain = 10 ** (db_val / 20.0)
+        self.data = original_audio.data * linear_gain
         self.data = np.clip(self.data, -1, 1)
-        return
+        return linear_gain
+
 
     def get_duration(self):
         return self.data.shape[0] / self.samplerate

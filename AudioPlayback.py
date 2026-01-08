@@ -62,6 +62,12 @@ class AudioPlaybackManager(QObject):
         self._session_offset_sec = 0.0
         self.duration = 0.0
 
+    def get_current_area(self):
+        return self._current_area
+
+    def get_current_audio(self):
+        return self._current_audio
+
     def play(self, audio_file, area: PlaybackArea, parent=None):
         if audio_file is None or audio_file.data.size == 0:
             QErrorMessage(parent).showMessage("No audio to play.")
@@ -122,11 +128,8 @@ class AudioPlaybackManager(QObject):
         else:
             self.play(audio_file, area, parent)
 
-    def stop(self, area: PlaybackArea = None):
+    def stop(self, area: PlaybackArea):
         """Stop playback in a playback area and reset position to 0."""
-        if area is None:
-            area = self._current_area
-
         if area is not None:
             state = self._states[area]
             state.reset()

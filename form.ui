@@ -1334,7 +1334,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
       </widget>
      </item>
      <item>
-      <widget class="QFrame" name="inputGainFrame_2">
+      <widget class="QFrame" name="IRGainFrame">
        <property name="enabled">
         <bool>true</bool>
        </property>
@@ -1369,7 +1369,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_6">
         <item>
-         <widget class="QLabel" name="inputGainLabel_2">
+         <widget class="QLabel" name="IRGainLabel">
           <property name="font">
            <font>
             <pointsize>11</pointsize>
@@ -1384,7 +1384,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
          </widget>
         </item>
         <item alignment="Qt::AlignmentFlag::AlignHCenter">
-         <widget class="QDial" name="inputDial_2">
+         <widget class="QDial" name="IRDial">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -1427,7 +1427,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
          </widget>
         </item>
         <item alignment="Qt::AlignmentFlag::AlignHCenter">
-         <widget class="QSpinBox" name="inputSpinBox_2">
+         <widget class="QSpinBox" name="IRSpinBox">
           <property name="minimumSize">
            <size>
             <width>71</width>
@@ -1464,7 +1464,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
       </widget>
      </item>
      <item>
-      <widget class="QFrame" name="IRGainFrame_2">
+      <widget class="QFrame" name="OutputGainFrame">
        <property name="enabled">
         <bool>true</bool>
        </property>
@@ -1499,7 +1499,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_5">
         <item>
-         <widget class="QLabel" name="irGainLabel_2">
+         <widget class="QLabel" name="OutputGainLabel">
           <property name="font">
            <font>
             <pointsize>11</pointsize>
@@ -1514,7 +1514,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
          </widget>
         </item>
         <item>
-         <widget class="QDial" name="dial">
+         <widget class="QDial" name="OutputDial">
           <property name="minimumSize">
            <size>
             <width>0</width>
@@ -1554,7 +1554,7 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
          </widget>
         </item>
         <item alignment="Qt::AlignmentFlag::AlignHCenter">
-         <widget class="QSpinBox" name="IRSpinBox_2">
+         <widget class="QSpinBox" name="OutputSpinBox">
           <property name="minimumSize">
            <size>
             <width>71</width>
@@ -1709,9 +1709,9 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
    </hints>
   </connection>
   <connection>
-   <sender>inputSpinBox_2</sender>
+   <sender>IRSpinBox</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>inputDial_2</receiver>
+   <receiver>IRDial</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1725,9 +1725,9 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
    </hints>
   </connection>
   <connection>
-   <sender>inputDial_2</sender>
+   <sender>IRDial</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>inputSpinBox_2</receiver>
+   <receiver>IRSpinBox</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1741,9 +1741,9 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
    </hints>
   </connection>
   <connection>
-   <sender>IRSpinBox_2</sender>
+   <sender>OutputSpinBox</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>dial</receiver>
+   <receiver>OutputDial</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1757,9 +1757,9 @@ QPushButton:pressed { background-color: rgb(62, 115, 138);}</string>
    </hints>
   </connection>
   <connection>
-   <sender>dial</sender>
+   <sender>OutputDial</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>IRSpinBox_2</receiver>
+   <receiver>OutputSpinBox</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
