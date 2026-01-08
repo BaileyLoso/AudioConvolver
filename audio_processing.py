@@ -57,7 +57,6 @@ class AudioFile:
         self.data = np.clip(self.data, -1, 1)
         return linear_gain
 
-
     def get_duration(self):
         return self.data.shape[0] / self.samplerate
 
@@ -66,7 +65,6 @@ class AudioFile:
         self.data = np.empty(2)
         self.samplerate = 0
         self.channels = 0
-
 
 ### This is where we will handle audio processing
 class AudioConvolver:

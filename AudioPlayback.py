@@ -106,11 +106,9 @@ class AudioPlaybackManager(QObject):
         except Exception as e:
             QErrorMessage(parent).showMessage(str(e))
 
-
     def pause(self, area: PlaybackArea = None):
         if area is None:
             area = self._current_area
-
         if area is None or self._current_area != area:
             return
 
@@ -202,7 +200,6 @@ class AudioPlaybackManager(QObject):
         if self._current_area is None:
             self._update_timer.stop()
             return
-
         if pygame.mixer.music.get_busy():
             position = self.get_playback_position()
             self.position_updated.emit(self._current_area, position)

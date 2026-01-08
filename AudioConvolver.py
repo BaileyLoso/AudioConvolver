@@ -96,7 +96,6 @@ class MainWindow(QMainWindow):
             self.ir_input: self._ir_input_original
         }
 
-
         # Connect signals to UI widgets
         self.ui.inputFileButton.clicked.connect(self.load_input_audio)
         self.ui.IRFileButton.clicked.connect(self.load_ir_audio)
@@ -115,7 +114,6 @@ class MainWindow(QMainWindow):
         self.ui.IRDial.valueChanged.connect(lambda x: self.change_inputs_gain(self.ir_input, x))
         self.ui.OutputDial.valueChanged.connect(self.change_output_gain)
 
-
     def save_output(self):
         if self.audio_input.file_path == "" or self.ir_input.file_path == "":
             return
@@ -128,14 +126,12 @@ class MainWindow(QMainWindow):
         self.playback_manager.toggle_play_pause(self.audio_input, PlaybackArea.INPUT, self)
         self._toggle_icon(PlaybackArea.INPUT, self.ui.inputPlayButton)
 
-
     def _toggle_ir_playback(self):
         if self.ir_input.file_path == "":
             return
         self._reset_play_icon()
         self.playback_manager.toggle_play_pause(self.ir_input, PlaybackArea.IR, self)
         self._toggle_icon(PlaybackArea.IR, self.ui.IRPlayButton)
-
 
     def _toggle_output_playback(self):
         if self.audio_input.file_path == "" or self.ir_input.file_path == "":
@@ -146,7 +142,6 @@ class MainWindow(QMainWindow):
             self.ui.outputPlayButton.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackPause))
         else:
             self.ui.outputPlayButton.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackStart))
-
 
     def _toggle_icon(self, playback_area, button):
         if self.playback_manager.is_playing(playback_area):
@@ -161,7 +156,6 @@ class MainWindow(QMainWindow):
         self.ui.outputPlayButton.setIcon(ButtonIcons.PLAY)
         self.ui.IRPlayButton.setIcon(ButtonIcons.PLAY)
         self.ui.inputPlayButton.setIcon(ButtonIcons.PLAY)
-
 
     def stop_playback(self):
         if not self.playback_manager.is_playing():
@@ -179,7 +173,6 @@ class MainWindow(QMainWindow):
         self.playback_manager.toggle_play_pause(curr_file, curr_area, self)
         self._toggle_icon(curr_area, self._buttons.get(curr_area))
 
-
     def _on_position_updated(self, area: PlaybackArea, position: float):
         cursor = self._cursors.get(area)
         audio_map = {PlaybackArea.INPUT: self.audio_input,
@@ -192,12 +185,10 @@ class MainWindow(QMainWindow):
         position = max(0.0, min(position, duration))
         cursor.setValue(position)
 
-
     def _on_playback_finished(self, area: PlaybackArea):
         cursor = self._cursors.get(area)
         if cursor:
             cursor.setValue(0)
-
 
     def clear_fields(self):
         self.playback_manager.stop_all()
@@ -216,7 +207,6 @@ class MainWindow(QMainWindow):
             if curve.getData() is not None:
                 curve.setData([])
 
-
     def load_input_audio(self):
         self.audio_input.load_file(self._audio_input_original)
         self.display_waveform(self.input_curve, self.audio_input.data,
@@ -230,7 +220,6 @@ class MainWindow(QMainWindow):
             file_path = file_path.split("/")[-1]
         self.ui.inputFileDisplay.setPlainText(file_path)
 
-
     def load_ir_audio(self):
         self.ir_input.load_file(self._ir_input_original)
         self.display_waveform(self.ir_curve, self.ir_input.data, self.ir_input.samplerate)
@@ -242,7 +231,6 @@ class MainWindow(QMainWindow):
         if file_path != "":
             file_path = file_path.split("/")[-1]
         self.ui.IRFileDisplay.setPlainText(file_path)
-
 
     def change_inputs_gain(self, audio_file: AudioFile, db_val: int = 0):
         if db_val == 0:
@@ -256,14 +244,12 @@ class MainWindow(QMainWindow):
         if self.audio_input.samplerate > 0 and self.ir_input.samplerate > 0:
             self.convolve()
 
-
     def change_output_gain(self, db_val: int = 0):
         if db_val == 0:
             self._output_audio.copy_data(self.output_audio_copy)
         else:
             self.output_audio_copy.adjust_gain(self._output_audio, db_val)
         self.display_waveform(self.output_curve, self.output_audio_copy.data, self.output_audio_copy.samplerate)
-
 
     def convolve(self):
         self._output_audio = process(self.audio_input, self.ir_input)
@@ -272,7 +258,6 @@ class MainWindow(QMainWindow):
         self.display_waveform(self.output_curve, self._output_audio.data,
                               self._output_audio.samplerate)
         self.ui.graphicsView.addItem(self.output_cursor)
-
 
     def display_waveform(self, curve, audio_data, samplerate):
         if audio_data.size == 0:
@@ -294,7 +279,6 @@ class MainWindow(QMainWindow):
         plot_widget = curve.getViewBox()
         plot_widget.setYRange(-1, 1, padding=0)
         curve.updateItems()
-
 
     def closeEvent(self, event):
         self.playback_manager.cleanup()
