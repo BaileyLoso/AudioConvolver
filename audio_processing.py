@@ -4,7 +4,6 @@ from scipy.signal import fftconvolve, resample, oaconvolve
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QErrorMessage
 
 
-
 class AudioFile:
     def __init__(self):
         self.file_path = ""
@@ -12,13 +11,9 @@ class AudioFile:
         self.samplerate = 0
         self.channels = 0
         self.length = 0
-        # self.peak = 0.0
 
     def __repr__(self):
         return f"AudioFile(file_path='{self.file_path}', samplerate={self.samplerate}, channels={self.channels})"
-
-    # def __eq__(self, other):
-    #     return self.file_path == other.file_path
 
     def load_file(self, audio_copy):
         self.file_path, _ = QFileDialog.getOpenFileName(None, "Select audio file", "", "Audio Files (*.wav *.mp3 *.flac)")
@@ -28,7 +23,6 @@ class AudioFile:
             try:
                 self.data, self.samplerate = sf.read(self.file_path, always_2d=True)
                 self.channels = self.data.shape[1]
-                # self.peak = np.max(np.abs(self.data))
                 self.copy_data(audio_copy)
                 self.length = self.data.shape[0]
             except Exception as e:
@@ -45,7 +39,6 @@ class AudioFile:
         dst.data = np.copy(self.data)
         dst.samplerate = self.samplerate
         dst.channels = self.channels
-        # dst.peak = self.peak
 
     def adjust_gain(self, original_audio, db_val):
         if self.data.size == 0 or original_audio.data.size == 0:
@@ -88,7 +81,6 @@ class AudioConvolver:
         will be normalized to prevent clipping.
         """
         output_audio = AudioFile()
-
         audio_data = audio_in.data.astype(np.float32)
         ir_data = ir.data.astype(np.float32)
 
@@ -122,4 +114,3 @@ class AudioConvolver:
             return
         sf.write(self.output_audio_path, output_audio.data, output_audio.samplerate)
         QMessageBox.information(None, "Success", f"Saved output to: {self.output_audio_path}")
-        return

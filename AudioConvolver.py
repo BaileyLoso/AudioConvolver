@@ -7,12 +7,7 @@ from audio_processing import AudioFile, AudioConvolver
 from AudioPlayback import AudioPlaybackManager, PlaybackArea
 
 
-class ButtonIcons:
-    PLAY = QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackStart)
-    PAUSE = QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackPause)
-
-
-def process(audio_in, ir_in):
+def _process(audio_in, ir_in):
     if audio_in.file_path is None or ir_in.file_path is None:
         return None  # No input files loaded
     if audio_in.samplerate == 0 or ir_in.samplerate == 0:
@@ -34,6 +29,7 @@ def _setup_plot_widget(plot_widget):
 
 ### Main application window
 class MainWindow(QMainWindow):
+    """"""
     def __init__(self):
         super().__init__()
 
@@ -96,28 +92,39 @@ class MainWindow(QMainWindow):
             self.ir_input: self._ir_input_original
         }
 
+        self.icons = {
+            "PLAY" : QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackStart),
+            "PAUSE": QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackPause)
+        }
+
         # Connect signals to UI widgets
         self.ui.inputFileButton.clicked.connect(self.load_input_audio)
-        self.ui.IRFileButton.clicked.connect(self.load_ir_audio)
-        self.ui.outputPlayButton.clicked.connect(self._toggle_output_playback)
         self.ui.inputPlayButton.clicked.connect(self._toggle_input_playback)
+        self.ui.inputRestartButton.clicked.connect(self.restart_playback)
+        self.ui.inputStopButton.clicked.connect(self.stop_playback)
+
+        self.ui.IRFileButton.clicked.connect(self.load_ir_audio)
         self.ui.IRPlayButton.clicked.connect(self._toggle_ir_playback)
+        self.ui.IRRestartButton.clicked.connect(self.restart_playback)
+        self.ui.IRStopButton.clicked.connect(self.stop_playback)
+
+        self.ui.outputPlayButton.clicked.connect(self._toggle_output_playback)
+        self.ui.outputRestartButton.clicked.connect(self.restart_playback)
+        self.ui.outputStopButton.clicked.connect(self.stop_playback)
+
+        self.ui.inputDial.valueChanged.connect(
+            lambda x: self.change_inputs_gain(self.audio_input, x))
+        self.ui.IRDial.valueChanged.connect(
+            lambda x: self.change_inputs_gain(self.ir_input, x))
+        self.ui.OutputDial.valueChanged.connect(self.change_output_gain)
+
         self.ui.clearButton.clicked.connect(self.clear_fields)
         self.ui.saveButton.clicked.connect(self.save_output)
-        self.ui.inputStopButton.clicked.connect(self.stop_playback)
-        self.ui.IRStopButton.clicked.connect(self.stop_playback)
-        self.ui.outputStopButton.clicked.connect(self.stop_playback)
-        self.ui.inputRestartButton.clicked.connect(self.restart_playback)
-        self.ui.IRRestartButton.clicked.connect(self.restart_playback)
-        self.ui.outputRestartButton.clicked.connect(self.restart_playback)
-        self.ui.inputDial.valueChanged.connect(lambda x: self.change_inputs_gain(self.audio_input, x))
-        self.ui.IRDial.valueChanged.connect(lambda x: self.change_inputs_gain(self.ir_input, x))
-        self.ui.OutputDial.valueChanged.connect(self.change_output_gain)
 
     def save_output(self):
         if self.audio_input.file_path == "" or self.ir_input.file_path == "":
             return
-        AudioConvolver.save_output(self._output_audio)
+        AudioConvolver.save_output(self, self._output_audio)
 
     def _toggle_input_playback(self):
         if self.audio_input.file_path == "":
@@ -139,23 +146,21 @@ class MainWindow(QMainWindow):
         self._reset_play_icon()
         self.playback_manager.toggle_play_pause(self._output_audio, PlaybackArea.OUTPUT, self)
         if self.playback_manager.is_playing(PlaybackArea.OUTPUT):
-            self.ui.outputPlayButton.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackPause))
+            self.ui.outputPlayButton.setIcon(self.icons.get("PAUSE"))
         else:
-            self.ui.outputPlayButton.setIcon(QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackStart))
+            self.ui.outputPlayButton.setIcon(self.icons.get("PLAY"))
 
     def _toggle_icon(self, playback_area, button):
         if self.playback_manager.is_playing(playback_area):
-            button.setIcon(ButtonIcons.PAUSE)
+            button.setIcon(self.icons.get("PAUSE"))
         else:
-            button.setIcon(ButtonIcons.PLAY)
-        return
-
+            button.setIcon(self.icons.get("PLAY"))
 
     def _reset_play_icon(self):
         """Reset play icons to default the default icon before a new playback starts."""
-        self.ui.outputPlayButton.setIcon(ButtonIcons.PLAY)
-        self.ui.IRPlayButton.setIcon(ButtonIcons.PLAY)
-        self.ui.inputPlayButton.setIcon(ButtonIcons.PLAY)
+        self.ui.outputPlayButton.setIcon(self.icons.get("PLAY"))
+        self.ui.IRPlayButton.setIcon(self.icons.get("PLAY"))
+        self.ui.inputPlayButton.setIcon(self.icons.get("PLAY"))
 
     def stop_playback(self):
         if not self.playback_manager.is_playing():
@@ -252,14 +257,15 @@ class MainWindow(QMainWindow):
         self.display_waveform(self.output_curve, self.output_audio_copy.data, self.output_audio_copy.samplerate)
 
     def convolve(self):
-        self._output_audio = process(self.audio_input, self.ir_input)
+        self._output_audio = _process(self.audio_input, self.ir_input)
         if self._output_audio is not None:
             self._output_audio.copy_data(self.output_audio_copy)
         self.display_waveform(self.output_curve, self._output_audio.data,
                               self._output_audio.samplerate)
         self.ui.graphicsView.addItem(self.output_cursor)
 
-    def display_waveform(self, curve, audio_data, samplerate):
+    @staticmethod
+    def display_waveform(curve, audio_data, samplerate):
         if audio_data.size == 0:
             return
         if audio_data.ndim == 1:

@@ -34,7 +34,6 @@ class PlaybackState:
                 os.remove(self.temp_file)
             except Exception as e:
                 print(f"Error removing temporary file: {e}")
-                pass
             self.temp_file = None
 
 
