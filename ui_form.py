@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.setEnabled(True)
-        MainWindow.resize(880, 683)
+        MainWindow.resize(933, 676)
         MainWindow.setMinimumSize(QSize(300, 200))
         palette = QPalette()
         brush = QBrush(QColor(255, 255, 255, 255))
@@ -97,7 +97,7 @@ class Ui_MainWindow(object):
         self.centralwidget.setAutoFillBackground(True)
         self.inputFrame = QFrame(self.centralwidget)
         self.inputFrame.setObjectName(u"inputFrame")
-        self.inputFrame.setGeometry(QRect(10, 10, 301, 271))
+        self.inputFrame.setGeometry(QRect(10, 10, 351, 291))
         self.inputFrame.setAcceptDrops(True)
         self.inputFrame.setAutoFillBackground(True)
         self.inputFrame.setFrameShape(QFrame.Shape.StyledPanel)
@@ -141,7 +141,13 @@ class Ui_MainWindow(object):
         self.inputFileDisplay.setMinimumSize(QSize(92, 31))
         self.inputFileDisplay.setMaximumSize(QSize(16777215, 31))
         self.inputFileDisplay.setStyleSheet(u"background-color: rgb(35, 35, 35);")
+        self.inputFileDisplay.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.inputFileDisplay.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.inputFileDisplay.setUndoRedoEnabled(False)
+        self.inputFileDisplay.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.inputFileDisplay.setReadOnly(True)
+        self.inputFileDisplay.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        self.inputFileDisplay.setBackgroundVisible(False)
         self.inputFileDisplay.setCenterOnScroll(False)
 
         self.horizontalLayout.addWidget(self.inputFileDisplay)
@@ -170,6 +176,7 @@ class Ui_MainWindow(object):
         self.InputPeekWidget.setSizePolicy(sizePolicy2)
         self.InputPeekWidget.setMinimumSize(QSize(256, 117))
         self.InputPeekWidget.setMaximumSize(QSize(99999, 117))
+        self.InputPeekWidget.setInteractive(False)
 
         self.verticalLayout.addWidget(self.InputPeekWidget, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -222,7 +229,7 @@ class Ui_MainWindow(object):
 
         self.IRFrame = QFrame(self.centralwidget)
         self.IRFrame.setObjectName(u"IRFrame")
-        self.IRFrame.setGeometry(QRect(10, 310, 301, 291))
+        self.IRFrame.setGeometry(QRect(10, 330, 351, 291))
         self.IRFrame.setAcceptDrops(True)
         self.IRFrame.setAutoFillBackground(True)
         self.IRFrame.setStyleSheet(u"")
@@ -256,7 +263,12 @@ class Ui_MainWindow(object):
         self.IRFileDisplay.setMinimumSize(QSize(92, 31))
         self.IRFileDisplay.setMaximumSize(QSize(16777215, 31))
         self.IRFileDisplay.setStyleSheet(u"background-color: rgb(35, 35, 35);")
+        self.IRFileDisplay.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.IRFileDisplay.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.IRFileDisplay.setUndoRedoEnabled(False)
+        self.IRFileDisplay.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.IRFileDisplay.setReadOnly(True)
+        self.IRFileDisplay.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.IRFileDisplay.setCenterOnScroll(False)
 
         self.horizontalLayout_2.addWidget(self.IRFileDisplay)
@@ -281,6 +293,7 @@ class Ui_MainWindow(object):
         self.IRPeekWidget.setObjectName(u"IRPeekWidget")
         self.IRPeekWidget.setMinimumSize(QSize(256, 117))
         self.IRPeekWidget.setMaximumSize(QSize(16777215, 117))
+        self.IRPeekWidget.setInteractive(False)
 
         self.verticalLayout_2.addWidget(self.IRPeekWidget, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -339,7 +352,7 @@ class Ui_MainWindow(object):
 
         self.outputFrame = QFrame(self.centralwidget)
         self.outputFrame.setObjectName(u"outputFrame")
-        self.outputFrame.setGeometry(QRect(330, 10, 461, 381))
+        self.outputFrame.setGeometry(QRect(390, 10, 471, 381))
         self.outputFrame.setAutoFillBackground(True)
         self.outputFrame.setFrameShape(QFrame.Shape.StyledPanel)
         self.outputFrame.setFrameShadow(QFrame.Shadow.Raised)
@@ -354,7 +367,7 @@ class Ui_MainWindow(object):
 
         self.graphicsView = PlotWidget(self.outputFrame)
         self.graphicsView.setObjectName(u"graphicsView")
-        self.graphicsView.setInteractive(True)
+        self.graphicsView.setInteractive(False)
         self.graphicsView.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
         self.graphicsView.setCacheMode(QGraphicsView.CacheModeFlag.CacheBackground)
 
@@ -406,7 +419,7 @@ class Ui_MainWindow(object):
 
         self.saveButton = QPushButton(self.centralwidget)
         self.saveButton.setObjectName(u"saveButton")
-        self.saveButton.setGeometry(QRect(720, 590, 121, 51))
+        self.saveButton.setGeometry(QRect(790, 590, 121, 51))
         self.saveButton.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.saveButton.setStyleSheet(u"QPushButton { padding-left: 0px; padding-right: 0px; background-color: rgb(78, 143, 173); }\n"
 "\n"
@@ -417,7 +430,7 @@ class Ui_MainWindow(object):
         self.clearButton = QPushButton(self.centralwidget)
         self.clearButton.setObjectName(u"clearButton")
         self.clearButton.setEnabled(True)
-        self.clearButton.setGeometry(QRect(720, 530, 121, 51))
+        self.clearButton.setGeometry(QRect(790, 530, 121, 51))
         self.clearButton.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.clearButton.setMouseTracking(True)
         self.clearButton.setAcceptDrops(False)
@@ -429,7 +442,7 @@ class Ui_MainWindow(object):
         self.clearButton.setCheckable(False)
         self.gainFrame = QFrame(self.centralwidget)
         self.gainFrame.setObjectName(u"gainFrame")
-        self.gainFrame.setGeometry(QRect(330, 420, 361, 221))
+        self.gainFrame.setGeometry(QRect(390, 420, 371, 221))
         self.gainFrame.setAutoFillBackground(True)
         self.gainFrame.setFrameShape(QFrame.Shape.StyledPanel)
         self.gainFrame.setFrameShadow(QFrame.Shadow.Raised)
@@ -593,16 +606,16 @@ class Ui_MainWindow(object):
 
         self.verticalSlider = QSlider(self.centralwidget)
         self.verticalSlider.setObjectName(u"verticalSlider")
-        self.verticalSlider.setGeometry(QRect(820, 40, 20, 311))
+        self.verticalSlider.setGeometry(QRect(890, 40, 20, 311))
         self.verticalSlider.setOrientation(Qt.Orientation.Vertical)
         self.label_6 = QLabel(self.centralwidget)
         self.label_6.setObjectName(u"label_6")
-        self.label_6.setGeometry(QRect(820, 360, 105, 20))
+        self.label_6.setGeometry(QRect(890, 360, 105, 20))
         self.label_6.setMaximumSize(QSize(16777215, 20))
         self.label_6.setFont(font)
         self.label_8 = QLabel(self.centralwidget)
         self.label_8.setObjectName(u"label_8")
-        self.label_8.setGeometry(QRect(820, 10, 105, 20))
+        self.label_8.setGeometry(QRect(880, 10, 105, 20))
         self.label_8.setMaximumSize(QSize(16777215, 20))
         self.label_8.setFont(font)
         MainWindow.setCentralWidget(self.centralwidget)

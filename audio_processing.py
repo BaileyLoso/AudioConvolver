@@ -4,13 +4,13 @@ from scipy.signal import fftconvolve, resample, decimate
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QErrorMessage
 
 
+
 class AudioFile:
     def __init__(self):
         self.file_path = ""
         self.data = np.empty(2)
         self.samplerate = 0
         self.channels = 0
-        self.playback_state = 'stopped'
 
     def __repr__(self):
         return f"AudioFile(file_path='{self.file_path}', samplerate={self.samplerate}, channels={self.channels})"
