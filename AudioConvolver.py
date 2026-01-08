@@ -1,12 +1,10 @@
 import numpy as np
-import pygame
 from PySide6.QtWidgets import QApplication, QMainWindow, QErrorMessage
 from PySide6.QtGui import QIcon
 import pyqtgraph as pg
 from ui_form import Ui_MainWindow
 from audio_processing import AudioFile, AudioConvolver
 from AudioPlayback import AudioPlaybackManager, PlaybackArea
-from pygame import mixer
 
 
 class ButtonIcons:
@@ -89,7 +87,14 @@ class MainWindow(QMainWindow):
         self.ui.inputPlayButton.clicked.connect(self._toggle_input_playback)
         self.ui.IRPlayButton.clicked.connect(self._toggle_ir_playback)
         self.ui.clearButton.clicked.connect(self.clear_fields)
+        self.ui.saveButton.clicked.connect(self.save_output)
 
+
+
+    def save_output(self):
+        if self.audio_input.file_path == "" or self.ir_input.file_path == "":
+            return
+        AudioConvolver.save_output(self, self._output_audio)
 
     def _toggle_input_playback(self):
         if self.audio_input.file_path == "":
