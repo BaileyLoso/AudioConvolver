@@ -111,8 +111,8 @@ class MainWindow(QMainWindow):
         self.ui.inputRestartButton.clicked.connect(self.restart_playback)
         self.ui.IRRestartButton.clicked.connect(self.restart_playback)
         self.ui.outputRestartButton.clicked.connect(self.restart_playback)
-        self.ui.inputDial.valueChanged.connect(lambda x: self.change_input_gain(self.audio_input, x))
-        self.ui.IRDial.valueChanged.connect(lambda x: self.change_input_gain(self.ir_input, x))
+        self.ui.inputDial.valueChanged.connect(lambda x: self.change_inputs_gain(self.audio_input, x))
+        self.ui.IRDial.valueChanged.connect(lambda x: self.change_inputs_gain(self.ir_input, x))
         self.ui.OutputDial.valueChanged.connect(self.change_output_gain)
 
 
@@ -222,6 +222,7 @@ class MainWindow(QMainWindow):
         self.display_waveform(self.input_curve, self.audio_input.data,
                               self.audio_input.samplerate)
         self.ui.InputPeekWidget.addItem(self.input_cursor)
+        self.playback_manager.stop_all()
         if self.audio_input.samplerate > 0 and self.ir_input.samplerate > 0:
             self.convolve()
         file_path = self.audio_input.file_path
@@ -234,6 +235,7 @@ class MainWindow(QMainWindow):
         self.ir_input.load_file(self._ir_input_original)
         self.display_waveform(self.ir_curve, self.ir_input.data, self.ir_input.samplerate)
         self.ui.IRPeekWidget.addItem(self.ir_cursor)
+        self.playback_manager.stop_all()
         if self.audio_input.samplerate > 0 and self.ir_input.samplerate > 0:
             self.convolve()
         file_path = self.ir_input.file_path
@@ -242,7 +244,7 @@ class MainWindow(QMainWindow):
         self.ui.IRFileDisplay.setPlainText(file_path)
 
 
-    def change_input_gain(self, audio_file: AudioFile, db_val: int = 0):
+    def change_inputs_gain(self, audio_file: AudioFile, db_val: int = 0):
         if db_val == 0:
             self._input_audio_files[audio_file].copy_data(audio_file)
         else:
@@ -259,8 +261,8 @@ class MainWindow(QMainWindow):
         if db_val == 0:
             self._output_audio.copy_data(self.output_audio_copy)
         else:
-            self._output_audio.adjust_gain(self.output_audio_copy, db_val)
-        self.display_waveform(self.output_curve, self._output_audio.data, self._output_audio.samplerate)
+            self.output_audio_copy.adjust_gain(self._output_audio, db_val)
+        self.display_waveform(self.output_curve, self.output_audio_copy.data, self.output_audio_copy.samplerate)
 
 
     def convolve(self):
