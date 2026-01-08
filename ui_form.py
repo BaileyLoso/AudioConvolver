@@ -17,8 +17,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QDial, QFrame,
     QGraphicsView, QHBoxLayout, QLabel, QMainWindow,
-    QPlainTextEdit, QPushButton, QSizePolicy, QSlider,
-    QSpinBox, QStatusBar, QVBoxLayout, QWidget)
+    QPlainTextEdit, QPushButton, QSizePolicy, QSpinBox,
+    QStatusBar, QVBoxLayout, QWidget)
 
 from pyqtgraph import PlotWidget
 
@@ -352,7 +352,7 @@ class Ui_MainWindow(object):
 
         self.outputFrame = QFrame(self.centralwidget)
         self.outputFrame.setObjectName(u"outputFrame")
-        self.outputFrame.setGeometry(QRect(390, 10, 471, 381))
+        self.outputFrame.setGeometry(QRect(390, 10, 521, 381))
         self.outputFrame.setAutoFillBackground(True)
         self.outputFrame.setFrameShape(QFrame.Shape.StyledPanel)
         self.outputFrame.setFrameShadow(QFrame.Shadow.Raised)
@@ -604,20 +604,6 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_6.addWidget(self.OutputGainFrame)
 
-        self.verticalSlider = QSlider(self.centralwidget)
-        self.verticalSlider.setObjectName(u"verticalSlider")
-        self.verticalSlider.setGeometry(QRect(890, 40, 20, 311))
-        self.verticalSlider.setOrientation(Qt.Orientation.Vertical)
-        self.label_6 = QLabel(self.centralwidget)
-        self.label_6.setObjectName(u"label_6")
-        self.label_6.setGeometry(QRect(890, 360, 105, 20))
-        self.label_6.setMaximumSize(QSize(16777215, 20))
-        self.label_6.setFont(font)
-        self.label_8 = QLabel(self.centralwidget)
-        self.label_8.setObjectName(u"label_8")
-        self.label_8.setGeometry(QRect(880, 10, 105, 20))
-        self.label_8.setMaximumSize(QSize(16777215, 20))
-        self.label_8.setFont(font)
         MainWindow.setCentralWidget(self.centralwidget)
         self.gainFrame.raise_()
         self.inputFrame.raise_()
@@ -625,9 +611,6 @@ class Ui_MainWindow(object):
         self.outputFrame.raise_()
         self.saveButton.raise_()
         self.clearButton.raise_()
-        self.verticalSlider.raise_()
-        self.label_6.raise_()
-        self.label_8.raise_()
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
         MainWindow.setStatusBar(self.statusbar)
@@ -680,7 +663,5 @@ class Ui_MainWindow(object):
         self.IRSpinBox.setSuffix(QCoreApplication.translate("MainWindow", u" dB", None))
         self.OutputGainLabel.setText(QCoreApplication.translate("MainWindow", u"Output Gain", None))
         self.OutputSpinBox.setSuffix(QCoreApplication.translate("MainWindow", u" dB", None))
-        self.label_6.setText(QCoreApplication.translate("MainWindow", u"Dry", None))
-        self.label_8.setText(QCoreApplication.translate("MainWindow", u"Wet", None))
     # retranslateUi
 
