@@ -1,6 +1,6 @@
 import soundfile as sf
 import numpy as np
-from scipy.signal import fftconvolve, resample, decimate
+from scipy.signal import fftconvolve, resample, oaconvolve
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QErrorMessage
 
 
@@ -11,7 +11,8 @@ class AudioFile:
         self.data = np.empty(2)
         self.samplerate = 0
         self.channels = 0
-        self.peak = 0.0
+        self.length = 0
+        # self.peak = 0.0
 
     def __repr__(self):
         return f"AudioFile(file_path='{self.file_path}', samplerate={self.samplerate}, channels={self.channels})"
@@ -22,18 +23,19 @@ class AudioFile:
     def load_file(self, audio_copy):
         self.file_path, _ = QFileDialog.getOpenFileName(None, "Select audio file", "", "Audio Files (*.wav *.mp3 *.flac)")
 
-        # Check if file path is valid
+        # Check if the file path is valid
         if self.file_path:
             try:
                 self.data, self.samplerate = sf.read(self.file_path, always_2d=True)
                 self.channels = self.data.shape[1]
-                self.peak = np.max(np.abs(self.data))
+                # self.peak = np.max(np.abs(self.data))
                 self.copy_data(audio_copy)
+                self.length = self.data.shape[0]
             except Exception as e:
                 QErrorMessage(parent=None).showMessage(str(e))
                 return
 
-        # If file path is invalid, return
+        # If the file path is invalid, return
         else:
             return
         QMessageBox.information(None, "Success", f"Loaded file: {self.file_path}")
@@ -43,7 +45,7 @@ class AudioFile:
         dst.data = np.copy(self.data)
         dst.samplerate = self.samplerate
         dst.channels = self.channels
-        dst.peak = self.peak
+        # dst.peak = self.peak
 
     def adjust_gain(self, original_audio, db_val):
         if self.data.size == 0 or original_audio.data.size == 0:
@@ -75,26 +77,44 @@ class AudioConvolver:
 
     @staticmethod
     def convolve(audio_in, ir):
+        """
+        Convolve the input AudioFile with the impulse response (IR) AudioFile.
+
+        Convert the input and IR audio data to float32 to encourage faster processing, then the IR is resampled to match
+        the samplerate of the input audio if necessary.
+
+        If the IR is shorter than 20% of the length of the input audio, uses oaconvolve for faster convolution.
+        Otherwise, fftconvolve is used since it is more efficient with similar-sized audio files.
+
+        The output AudioFile will have the same samplerate and number of channels as the input audio, and it
+        will be normalized to prevent clipping.
+        """
         output_audio = AudioFile()
 
-        if audio_in.samplerate != ir.samplerate:
-            num_samples_new = int(ir.data.shape[0] * audio_in.samplerate / ir.samplerate)
-            ir.data = resample(ir.data, num_samples_new, axis=0)
-            ir.samplerate = audio_in.samplerate
+        audio_data = audio_in.data.astype(np.float32)
+        ir_data = ir.data.astype(np.float32)
 
-        # Fill in data fields for audio
-        output_audio.data = fftconvolve(audio_in.data, ir.data, mode='full', axes=0)
+        if audio_in.samplerate != ir.samplerate:
+            num_samples_new = int(ir_data.shape[0] * audio_in.samplerate / ir.samplerate)
+            ir.data = resample(ir_data, num_samples_new, axis=0)
+
+        if ir.length < audio_in.length // 20:
+            output_audio.data = oaconvolve(audio_data, ir_data, mode='full', axes=0)
+        else:
+            output_audio.data = fftconvolve(audio_data, ir_data, mode='full', axes=0)
+
         output_audio.samplerate = audio_in.samplerate
 
         # Calling shape() on 2nd element finds number of channels
         output_audio.channels = output_audio.data.shape[1]
 
         if output_audio.channels > 2:
-            output_audio.data = output_audio.data[:, :2]  # Keep only first two channels if more than 2 channels
+            output_audio.data = output_audio.data[:, :2]  # Keep only the first two channels if more than 2 channels
 
-        # 1.0 is max amplitude for audio files
-        if np.max(np.abs(output_audio.data)) > 1.0:
-            output_audio.data = output_audio.data / np.max(np.abs(output_audio.data))  # Normalize to prevent clipping
+        max_val = np.max(np.abs(output_audio.data))
+        # 1.0 is the max amplitude for audio files
+        if max_val > 1.0:
+            output_audio.data /= max_val  # Normalize to prevent clipping
         return output_audio
 
     def save_output(self, output_audio):
