@@ -214,3 +214,4 @@ class AudioPlaybackManager(QObject):
         self.stop_all()
         for state in self._states.values():
             state.cleanup_temp_file()
+        pygame.mixer.quit()

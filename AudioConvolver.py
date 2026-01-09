@@ -8,6 +8,22 @@ from AudioPlayback import AudioPlaybackManager, PlaybackArea
 
 
 def _process(audio_in, ir_in):
+    """
+    Convolve two audio files and return the resulting output.
+
+    Parameters
+    ----------
+    audio_in : AudioFile
+        The input audio file to be convolved.
+    ir_in : AudioFile
+        The impulse response audio file used for convolution. Although
+        impulse responses are usually short, longer files are permitted.
+
+    Returns
+    -------
+    AudioFile or None
+        The convolved audio file if successful, None otherwise.
+    """
     if audio_in.file_path is None or ir_in.file_path is None:
         return None  # No input files loaded
     if audio_in.samplerate == 0 or ir_in.samplerate == 0:
@@ -153,7 +169,7 @@ class MainWindow(QMainWindow):
         if self._audio_input.file_path == "" or self._ir_input.file_path == "":
             return
         self._reset_play_icon()
-        self._playback_manager.toggle_play_pause(self._output_audio_original, PlaybackArea.OUTPUT, self)
+        self._playback_manager.toggle_play_pause(self._output_audio_original, PlaybackArea.OUTPUT)
         if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
             self.ui.outputPlayButton.setIcon(self._icons.get("PAUSE"))
         else:
@@ -246,26 +262,37 @@ class MainWindow(QMainWindow):
         self.ui.IRFileDisplay.setPlainText(file_path)
 
     def _change_inputs_gain(self, audio_file: AudioFile, db_val: int = 0):
+        """
+        Adjust the input gain and update the input waveform.
+
+        If both inputs are loaded, re-convolve the output.
+        """
+
         if db_val == 0:
             self._input_audio_files[audio_file].copy_data(audio_file)
         else:
             audio_file.adjust_gain(self._input_audio_files[audio_file], db_val)
         if audio_file is self._audio_input:
-            self._display_waveform(self._input_curve, self._audio_input.data, self._audio_input.samplerate)
+            self._display_waveform(self._input_curve, self._audio_input.data,
+                                   self._audio_input.samplerate)
         else:
             self._display_waveform(self._ir_curve, self._ir_input.data, self._ir_input.samplerate)
         if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
             self._convolve()
 
     def _change_output_gain(self, db_val: int = 0):
+        """Adjust the output gain and update the output waveform."""
+
         if db_val == 0:
             self._output_audio_original.copy_data(self._output_audio)
         else:
             self._output_audio.adjust_gain(self._output_audio_original, db_val)
-        self._display_waveform(self._output_curve, self._output_audio.data, self._output_audio.samplerate)
+        self._display_waveform(self._output_curve, self._output_audio.data,
+                               self._output_audio.samplerate)
 
     def _convolve(self):
         """Trigger convolution, save the output, and display its waveform."""
+
         self._output_audio_original = _process(self._audio_input, self._ir_input)
         if self._output_audio_original is not None:
             self._output_audio_original.copy_data(self._output_audio)
@@ -275,6 +302,13 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _display_waveform(curve, audio_data, samplerate):
+        """
+        Display a waveform in a plot widget.
+
+        The waveform is downsampled by a factor of 30 to improve
+        performance, and the amplitude is normalized to -1 to 1.
+        """
+
         if audio_data.size == 0:
             return
         if audio_data.ndim == 1:
@@ -296,6 +330,13 @@ class MainWindow(QMainWindow):
         curve.updateItems()
 
     def closeEvent(self, event):
+        """
+        Cleanup resources when the window is closed.
+
+        Overrides QMainWindow.closeEvent() to additionally clean up the
+        playback manager and pygame mixer.
+        """
+
         self._playback_manager.cleanup()
         super().closeEvent(event)
 
@@ -305,4 +346,3 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     app.exec()
-
