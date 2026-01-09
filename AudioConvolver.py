@@ -187,9 +187,9 @@ class MainWindow(QMainWindow):
         self.ui.inputPlayButton.setIcon(self._icons.get("PLAY"))
 
     def _stop_playback(self):
-        if not self._playback_manager.is_playing():
-            return
         curr_area = self._playback_manager.get_current_area()
+        if curr_area is None:
+            return
         cursor = self._cursors.get(curr_area)
         self._reset_play_icon()
         self._playback_manager.stop(curr_area)

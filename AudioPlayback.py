@@ -1,4 +1,4 @@
-from enum import Enum
+"""Audio playback manager."""
 
 import pygame
 import soundfile as sf
@@ -7,7 +7,6 @@ import os
 from PySide6.QtWidgets import QErrorMessage
 from PySide6.QtCore import QObject, Signal, QTimer
 from enum import Enum, auto
-from AudioProcessing import AudioFile
 
 
 class PlaybackArea(Enum):
@@ -114,7 +113,7 @@ class AudioPlaybackManager(QObject):
         if pygame.mixer.music.get_busy():
             state = self._states[area]
             # Save current position before pausing
-            state.position = self.get_playback_position()
+            state.position = self._get_playback_position()
             state.is_paused = True
             pygame.mixer.music.pause()
             self._update_timer.stop()
@@ -147,28 +146,15 @@ class AudioPlaybackManager(QObject):
         self._current_audio = None
         self._session_offset_sec = 0.0
 
-    def get_position(self, area: PlaybackArea) -> float:
-        return self._states[area].position
-
-    def set_position(self, area: PlaybackArea, position: float):
-        self._states[area].position = position
-
-        # If this area is currently playing, seek to new position
-        if self._current_area == area and pygame.mixer.music.get_busy():
-            pygame.mixer.music.set_pos(position)
-
     def is_playing(self, area: PlaybackArea = None) -> bool:
         if area is None:
             return pygame.mixer.music.get_busy()
         return self._current_area == area and pygame.mixer.music.get_busy()
 
-    def is_paused(self, area: PlaybackArea) -> bool:
-        return self._states[area].is_paused
-
     def get_current_area(self) -> PlaybackArea:
         return self._current_area
 
-    def get_playback_position(self) -> float:
+    def _get_playback_position(self) -> float:
         if self._current_area is None:
             return 0.0
         state = self._states[self._current_area]
@@ -186,7 +172,7 @@ class AudioPlaybackManager(QObject):
     def _stop_and_save_position(self):
         if self._current_area is not None and pygame.mixer.music.get_busy():
             state = self._states[self._current_area]
-            state.position = self.get_playback_position()
+            state.position = self._get_playback_position()
             state.is_paused = True
             pygame.mixer.music.stop()
             self._update_timer.stop()
@@ -200,7 +186,7 @@ class AudioPlaybackManager(QObject):
             self._update_timer.stop()
             return
         if pygame.mixer.music.get_busy():
-            position = self.get_playback_position()
+            position = self._get_playback_position()
             self.position_updated.emit(self._current_area, position)
         else:
             # Playback finished naturally
