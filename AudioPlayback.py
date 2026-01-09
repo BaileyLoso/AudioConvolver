@@ -16,13 +16,33 @@ class PlaybackArea(Enum):
 
 
 class PlaybackState:
+    """
+    The current state of audio playback for a specific area.
+
+    Attributes
+    ----------
+    position : float
+        The current playback position in seconds.
+    is_paused : bool
+        Whether playback is currently paused.
+    is_stopped : bool
+        Whether playback has been stopped.
+    temp_file : str or None
+        The temporary file path for audio data. This is the main source
+        of audio data for playback.
+    temp_file_2 : str or None
+        The temporary file path for audio data. This is used to quickly
+        modify the audio data while playback is in progress.
+    """
+
     def __init__(self):
         self.position = 0.0
         self.is_paused = False
         self.is_stopped = True
         self.temp_file = None
+        self.temp_file_2 = None
 
-    def reset(self):
+    def _reset(self):
         self.position = 0.0
         self.is_paused = False
         self.temp_file = None
@@ -66,7 +86,7 @@ class AudioPlaybackManager(QObject):
     def get_current_audio(self):
         return self._current_audio
 
-    def play(self, audio_file, area: PlaybackArea, parent=None):
+    def _play(self, audio_file, area: PlaybackArea, parent=None):
         if audio_file is None or audio_file.data.size == 0:
             QErrorMessage(parent).showMessage("No audio to play.")
             return
@@ -84,7 +104,7 @@ class AudioPlaybackManager(QObject):
         try:
             # Create temp file if needed
             if not state.temp_file or not os.path.exists(state.temp_file):
-                temp_fd, state.temp_file = tempfile.mkstemp(suffix='.wav')
+                temp_fd, state.temp_file = tempfile.mkstemp(suffix='.mp3')
                 os.close(temp_fd)
                 sf.write(state.temp_file, audio_file.data, audio_file.samplerate)
             pygame.mixer.music.load(state.temp_file)
@@ -104,7 +124,7 @@ class AudioPlaybackManager(QObject):
         except Exception as e:
             QErrorMessage(parent).showMessage(str(e))
 
-    def pause(self, area: PlaybackArea = None):
+    def _pause(self, area: PlaybackArea = None):
         if area is None:
             area = self._current_area
         if area is None or self._current_area != area:
@@ -120,15 +140,51 @@ class AudioPlaybackManager(QObject):
 
     def toggle_play_pause(self, audio_file, area: PlaybackArea, parent=None):
         if self._current_area == area and pygame.mixer.music.get_busy():
-            self.pause(area)
+            self._pause(area)
         else:
-            self.play(audio_file, area, parent)
+            self._play(audio_file, area, parent)
+
+    def update_audio(self, audio_file, area: PlaybackArea):
+        """Update the audio while keeping its current position."""
+
+        if area is None:
+            return
+
+        if audio_file is None or audio_file.data.size == 0:
+            return
+
+        if self._current_area != area:
+            state = self._states[area]
+            state.cleanup_temp_file()
+            return
+
+        state = self._states[area]
+        was_playing = pygame.mixer.music.get_busy()
+
+
+        if was_playing:
+            position = self._get_playback_position()
+
+            temp_fd, state.temp_file_2 = tempfile.mkstemp(suffix='.mp3')
+            os.close(temp_fd)
+            sf.write(state.temp_file_2, audio_file.data, audio_file.samplerate)
+
+            pygame.mixer.music.unload()
+            state.cleanup_temp_file()
+
+            pygame.mixer.music.load(state.temp_file_2)
+            pygame.mixer.music.play(start=position)
+            self._session_offset_sec = position
+            self._current_audio = audio_file
+            self._update_timer.start()
+        else:
+            state.cleanup_temp_file()
 
     def stop(self, area: PlaybackArea):
         """Stop playback in a playback area and reset position to 0."""
         if area is not None:
             state = self._states[area]
-            state.reset()
+            state._reset()
 
         if self._current_area == area:
             pygame.mixer.music.stop()
@@ -141,7 +197,7 @@ class AudioPlaybackManager(QObject):
         pygame.mixer.music.stop()
         self._update_timer.stop()
         for state in self._states.values():
-            state.reset()
+            state._reset()
         self._current_area = None
         self._current_audio = None
         self._session_offset_sec = 0.0
@@ -191,7 +247,7 @@ class AudioPlaybackManager(QObject):
         else:
             # Playback finished naturally
             self._update_timer.stop()
-            self._states[self._current_area].reset()
+            self._states[self._current_area]._reset()
             self.playback_finished.emit(self._current_area)
             self._current_area = None
             self._current_audio = None

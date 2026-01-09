@@ -122,6 +122,12 @@ class MainWindow(QMainWindow):
             "PAUSE": QIcon.fromTheme(QIcon.ThemeIcon.MediaPlaybackPause)
         }
 
+        self._audio_areas = {
+            PlaybackArea.INPUT: self._audio_input,
+            PlaybackArea.IR: self._ir_input,
+            PlaybackArea.OUTPUT: self._output_audio_original
+        }
+
         # Connect signals to UI widgets
         self.ui.inputFileButton.clicked.connect(self._load_input_audio)
         self.ui.inputPlayButton.clicked.connect(self._toggle_input_playback)
@@ -145,6 +151,14 @@ class MainWindow(QMainWindow):
 
         self.ui.clearButton.clicked.connect(self._clear_fields)
         self.ui.saveButton.clicked.connect(self._save_output)
+
+    def _get_audio_for_area(self, area: PlaybackArea):
+        if area == PlaybackArea.INPUT:
+            return self._audio_input
+        elif area == PlaybackArea.IR:
+            return self._ir_input
+        else:
+            return self._output_audio_original
 
     def _save_output(self):
         if self._audio_input.file_path == "" or self._ir_input.file_path == "":
@@ -204,10 +218,7 @@ class MainWindow(QMainWindow):
 
     def _on_position_updated(self, area: PlaybackArea, position: float):
         cursor = self._cursors.get(area)
-        audio_map = {PlaybackArea.INPUT: self._audio_input,
-                     PlaybackArea.IR: self._ir_input,
-                     PlaybackArea.OUTPUT: self._output_audio_original}
-        audio = audio_map.get(area)
+        audio = self._get_audio_for_area(area)
         if not cursor or not audio or audio.data.size == 0:
             return
         duration = len(audio.data) / audio.samplerate
@@ -241,7 +252,13 @@ class MainWindow(QMainWindow):
         self._display_waveform(self._input_curve, self._audio_input.data,
                                self._audio_input.samplerate)
         self.ui.InputPeekWidget.addItem(self._input_cursor)
-        self._playback_manager.stop_all()
+
+        """Temp area to test uninterrupted output playback"""
+        curr_area = self._playback_manager.get_current_area()
+        if curr_area is PlaybackArea.INPUT or curr_area is PlaybackArea.IR:
+            self._playback_manager.stop(curr_area)
+
+        # self._playback_manager.stop_all()
         if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
             self._convolve()
         file_path = self._audio_input.file_path
@@ -275,8 +292,13 @@ class MainWindow(QMainWindow):
         if audio_file is self._audio_input:
             self._display_waveform(self._input_curve, self._audio_input.data,
                                    self._audio_input.samplerate)
+            if self._playback_manager.is_playing(PlaybackArea.INPUT):
+                self._playback_manager.update_audio(self._audio_input, PlaybackArea.INPUT)
         else:
             self._display_waveform(self._ir_curve, self._ir_input.data, self._ir_input.samplerate)
+            if self._playback_manager.is_playing(PlaybackArea.IR):
+                self._playback_manager.update_audio(self._ir_input, PlaybackArea.IR)
+
         if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
             self._convolve()
 
@@ -287,6 +309,11 @@ class MainWindow(QMainWindow):
             self._output_audio_original.copy_data(self._output_audio)
         else:
             self._output_audio.adjust_gain(self._output_audio_original, db_val)
+
+            if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
+                curr_area = self._playback_manager.get_current_area()
+                curr_audio = self._get_audio_for_area(curr_area)
+                self._playback_manager.update_audio(curr_audio, curr_area)
         self._display_waveform(self._output_curve, self._output_audio.data,
                                self._output_audio.samplerate)
 
@@ -299,6 +326,9 @@ class MainWindow(QMainWindow):
         self._display_waveform(self._output_curve, self._output_audio_original.data,
                                self._output_audio_original.samplerate)
         self.ui.graphicsView.addItem(self._output_cursor)
+
+        if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
+            self._playback_manager.update_audio(self._output_audio_original, PlaybackArea.OUTPUT)
 
     @staticmethod
     def _display_waveform(curve, audio_data, samplerate):
