@@ -7,7 +7,7 @@ import os
 from PySide6.QtWidgets import QErrorMessage
 from PySide6.QtCore import QObject, Signal, QTimer
 from enum import Enum, auto
-from audio_processing import AudioFile
+from AudioProcessing import AudioFile
 
 
 class PlaybackArea(Enum):
