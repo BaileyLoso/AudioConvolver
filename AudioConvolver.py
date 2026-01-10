@@ -288,7 +288,9 @@ class MainWindow(QMainWindow):
         if db_val == 0:
             self._input_audio_files[audio_file].copy_data(audio_file)
         else:
-            audio_file.adjust_gain(self._input_audio_files[audio_file], db_val)
+            result = audio_file.adjust_gain(self._input_audio_files[audio_file], db_val)
+            if result == 0:
+                return
         if audio_file is self._audio_input:
             self._display_waveform(self._input_curve, self._audio_input.data,
                                    self._audio_input.samplerate)
@@ -308,7 +310,9 @@ class MainWindow(QMainWindow):
         if db_val == 0:
             self._output_audio_original.copy_data(self._output_audio)
         else:
-            self._output_audio.adjust_gain(self._output_audio_original, db_val)
+            result = self._output_audio.adjust_gain(self._output_audio_original, db_val)
+            if result == 0:
+                return
 
             if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
                 curr_area = self._playback_manager.get_current_area()
