@@ -23,8 +23,8 @@ class AudioFile:
             try:
                 self.data, self.samplerate = sf.read(self.file_path, always_2d=True)
                 self.channels = self.data.shape[1]
-                self.copy_data(audio_copy)
                 self.length = self.data.shape[0]
+                self.copy_data(audio_copy)
             except Exception as e:
                 QErrorMessage(parent=None).showMessage(str(e))
                 return
@@ -39,6 +39,7 @@ class AudioFile:
         dst.data = np.copy(self.data)
         dst.samplerate = self.samplerate
         dst.channels = self.channels
+        dst.length = self.length
 
     def adjust_gain(self, original_audio, db_val):
         if self.length == 0 or original_audio.length == 0:
@@ -100,6 +101,7 @@ class AudioConvolver:
 
         if output_audio.channels > 2:
             output_audio.data = output_audio.data[:, :2]  # Keep only the first two channels if more than 2 channels
+        output_audio.length = output_audio.data.shape[0]
 
         max_val = np.max(np.abs(output_audio.data))
         # 1.0 is the max amplitude for audio files

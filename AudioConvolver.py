@@ -315,9 +315,7 @@ class MainWindow(QMainWindow):
                 return
 
             if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
-                curr_area = self._playback_manager.get_current_area()
-                curr_audio = self._get_audio_for_area(curr_area)
-                self._playback_manager.update_audio(curr_audio, curr_area)
+                self._playback_manager.update_audio(self._output_audio, PlaybackArea.OUTPUT)
         self._display_waveform(self._output_curve, self._output_audio.data,
                                self._output_audio.samplerate)
 
