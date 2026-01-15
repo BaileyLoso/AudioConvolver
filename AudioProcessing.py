@@ -41,7 +41,7 @@ class AudioFile:
         dst.channels = self.channels
         dst.length = self.length
 
-    def adjust_gain(self, original_audio, db_val):
+    def adjust_soundfile_gain(self, original_audio, db_val):
         if self.length == 0 or original_audio.length == 0:
             return 0
         if db_val == 0:

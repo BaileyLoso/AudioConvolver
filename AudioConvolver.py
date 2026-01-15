@@ -4,7 +4,8 @@ from PySide6.QtGui import QIcon
 import pyqtgraph as pg
 from ui_form import Ui_MainWindow
 from AudioProcessing import AudioFile, AudioConvolver
-from AudioPlayback import AudioPlaybackManager, PlaybackArea
+from AudioPlayback import AudioPlaybackManager, PlaybackArea, AreaManager
+import soundfile as sf
 
 
 def _process(audio_in, ir_in):
@@ -81,7 +82,7 @@ class MainWindow(QMainWindow):
         _setup_plot_widget(self.ui.IRPeekWidget)
         _setup_plot_widget(self.ui.graphicsView)
 
-        # Initialize plot curves and cursors for each area
+        # Initialize plot curves and cursors for each area_manager
         self._input_curve = self.ui.InputPeekWidget.plot(pen='b')
         self._input_curve.setClipToView(True)
         self._input_cursor = pg.InfiniteLine(pos=0, angle=90, pen=pg.mkPen(color='r', width=2))
@@ -144,10 +145,10 @@ class MainWindow(QMainWindow):
         self.ui.outputStopButton.clicked.connect(self._stop_playback)
 
         self.ui.inputDial.valueChanged.connect(
-            lambda x: self._change_inputs_gain(self._audio_input, x))
+            lambda x: self._adjust_gain(self._playback_manager.input_area, x))
         self.ui.IRDial.valueChanged.connect(
-            lambda x: self._change_inputs_gain(self._ir_input, x))
-        self.ui.OutputDial.valueChanged.connect(self._change_output_gain)
+            lambda x: self._adjust_gain(self._playback_manager.ir_area, x))
+        self.ui.OutputDial.valueChanged.connect(lambda x: self._adjust_gain(self._playback_manager.output_area, x))
 
         self.ui.clearButton.clicked.connect(self._clear_fields)
         self.ui.saveButton.clicked.connect(self._save_output)
@@ -163,34 +164,34 @@ class MainWindow(QMainWindow):
     def _save_output(self):
         if self._audio_input.file_path == "" or self._ir_input.file_path == "":
             return
-        AudioConvolver.save_output(self, self._output_audio_original)
+        AudioConvolver.save_output(self, self._output_audio)
 
     def _toggle_input_playback(self):
         if self._audio_input.file_path == "":
             return
         self._reset_play_icon()
-        self._playback_manager.toggle_play_pause(self._audio_input, PlaybackArea.INPUT, self)
-        self._toggle_icon(PlaybackArea.INPUT, self.ui.inputPlayButton)
+        self._playback_manager.toggle_play_pause2(self._audio_input, self._playback_manager.input_area)
+        self._toggle_icon(self._playback_manager.input_area, self.ui.inputPlayButton)
 
     def _toggle_ir_playback(self):
         if self._ir_input.file_path == "":
             return
         self._reset_play_icon()
-        self._playback_manager.toggle_play_pause(self._ir_input, PlaybackArea.IR, self)
-        self._toggle_icon(PlaybackArea.IR, self.ui.IRPlayButton)
+        self._playback_manager.toggle_play_pause2(self._ir_input, self._playback_manager.ir_area)
+        self._toggle_icon(self._playback_manager.ir_area, self.ui.IRPlayButton)
 
     def _toggle_output_playback(self):
         if self._audio_input.file_path == "" or self._ir_input.file_path == "":
             return
         self._reset_play_icon()
-        self._playback_manager.toggle_play_pause(self._output_audio_original, PlaybackArea.OUTPUT)
-        if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
+        self._playback_manager.toggle_play_pause2(self._output_audio, self._playback_manager.output_area)
+        if self._playback_manager.is_playing2(PlaybackArea.OUTPUT):
             self.ui.outputPlayButton.setIcon(self._icons.get("PAUSE"))
         else:
             self.ui.outputPlayButton.setIcon(self._icons.get("PLAY"))
 
     def _toggle_icon(self, playback_area, button):
-        if self._playback_manager.is_playing(playback_area):
+        if self._playback_manager.is_playing2(playback_area):
             button.setIcon(self._icons.get("PAUSE"))
         else:
             button.setIcon(self._icons.get("PLAY"))
@@ -206,15 +207,17 @@ class MainWindow(QMainWindow):
             return
         cursor = self._cursors.get(curr_area)
         self._reset_play_icon()
-        self._playback_manager.stop(curr_area)
+        self._playback_manager.stop2(curr_area)
         cursor.setValue(0)
+        print(f"Stopped playback for area: {curr_area}")
 
     def _restart_playback(self):
         curr_file = self._playback_manager.get_current_audio()
+        curr_area_manager = self._playback_manager.get_current_area_manager()
         curr_area = self._playback_manager.get_current_area()
         self._stop_playback()
-        self._playback_manager.toggle_play_pause(curr_file, curr_area, self)
-        self._toggle_icon(curr_area, self._buttons.get(curr_area))
+        self._playback_manager.toggle_play_pause2(curr_file, curr_area_manager)
+        self._toggle_icon(curr_area_manager, self._buttons.get(curr_area))
 
     def _on_position_updated(self, area: PlaybackArea, position: float):
         cursor = self._cursors.get(area)
@@ -231,7 +234,7 @@ class MainWindow(QMainWindow):
             cursor.setValue(0)
 
     def _clear_fields(self):
-        self._playback_manager.stop_all()
+        self._playback_manager.stop_all2()
         self._audio_input_original.clear()
         self._ir_input_original.clear()
         self._audio_input.clear()
@@ -253,10 +256,10 @@ class MainWindow(QMainWindow):
                                self._audio_input.samplerate)
         self.ui.InputPeekWidget.addItem(self._input_cursor)
 
-        """Temp area to test uninterrupted output playback"""
+        """Temp area_manager to test uninterrupted output playback"""
         curr_area = self._playback_manager.get_current_area()
         if curr_area is PlaybackArea.INPUT or curr_area is PlaybackArea.IR:
-            self._playback_manager.stop(curr_area)
+            self._playback_manager.stop2(curr_area)
 
         # self._playback_manager.stop_all()
         if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
@@ -265,59 +268,40 @@ class MainWindow(QMainWindow):
         if file_path != "":
             file_path = file_path.split("/")[-1]
         self.ui.inputFileDisplay.setPlainText(file_path)
+        self._reset_play_icon()
 
     def _load_ir_audio(self):
         self._ir_input.load_file(self._ir_input_original)
         self._display_waveform(self._ir_curve, self._ir_input.data, self._ir_input.samplerate)
         self.ui.IRPeekWidget.addItem(self._ir_cursor)
-        self._playback_manager.stop_all()
+        self._playback_manager.stop_all2()
         if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
             self._convolve()
         file_path = self._ir_input.file_path
         if file_path != "":
             file_path = file_path.split("/")[-1]
         self.ui.IRFileDisplay.setPlainText(file_path)
+        self._reset_play_icon()
 
-    def _change_inputs_gain(self, audio_file: AudioFile, db_val: int = 0):
-        """
-        Adjust the input gain and update the input waveform.
+    def _adjust_gain(self, area: AreaManager, db: int = 0):
+        area.gain_change = db
+        self._change_waveform_gain(area, db)
 
-        If both inputs are loaded, re-convolve the output.
-        """
-
-        if db_val == 0:
-            self._input_audio_files[audio_file].copy_data(audio_file)
-        else:
-            result = audio_file.adjust_gain(self._input_audio_files[audio_file], db_val)
-            if result == 0:
-                return
-        if audio_file is self._audio_input:
-            self._display_waveform(self._input_curve, self._audio_input.data,
-                                   self._audio_input.samplerate)
-            if self._playback_manager.is_playing(PlaybackArea.INPUT):
-                self._playback_manager.update_audio(self._audio_input, PlaybackArea.INPUT)
-        else:
-            self._display_waveform(self._ir_curve, self._ir_input.data, self._ir_input.samplerate)
-            if self._playback_manager.is_playing(PlaybackArea.IR):
-                self._playback_manager.update_audio(self._ir_input, PlaybackArea.IR)
-
-        if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
-            self._convolve()
-
-    def _change_output_gain(self, db_val: int = 0):
-        """Adjust the output gain and update the output waveform."""
-
-        if db_val == 0:
-            self._output_audio_original.copy_data(self._output_audio)
-        else:
-            result = self._output_audio.adjust_gain(self._output_audio_original, db_val)
-            if result == 0:
-                return
-
-            if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
-                self._playback_manager.update_audio(self._output_audio, PlaybackArea.OUTPUT)
-        self._display_waveform(self._output_curve, self._output_audio.data,
-                               self._output_audio.samplerate)
+    def _change_waveform_gain(self, area: AreaManager, db_val: int):
+        """Adjust the waveform gain and update the waveform."""
+        match area:
+            case self._playback_manager.input_area:
+                self._audio_input.adjust_soundfile_gain(self._audio_input_original, db_val)
+                self._display_waveform(self._input_curve, self._audio_input.data,
+                                       self._audio_input.samplerate)
+            case self._playback_manager.ir_area:
+                self._ir_input.adjust_soundfile_gain(self._ir_input_original, db_val)
+                self._display_waveform(self._ir_curve, self._ir_input.data,
+                                       self._ir_input.samplerate)
+            case self._playback_manager.output_area:
+                self._output_audio.adjust_soundfile_gain(self._output_audio_original, db_val)
+                self._display_waveform(self._output_curve, self._output_audio.data,
+                                       self._output_audio_original.samplerate)
 
     def _convolve(self):
         """Trigger convolution, save the output, and display its waveform."""
@@ -328,8 +312,10 @@ class MainWindow(QMainWindow):
         self._display_waveform(self._output_curve, self._output_audio_original.data,
                                self._output_audio_original.samplerate)
         self.ui.graphicsView.addItem(self._output_cursor)
+        sf.write("output.wav", self._output_audio.data, self._output_audio.samplerate)
+        self._output_audio.file_path = "output.wav"
 
-        if self._playback_manager.is_playing(PlaybackArea.OUTPUT):
+        if self._playback_manager.is_playing2(PlaybackArea.OUTPUT):
             self._playback_manager.update_audio(self._output_audio_original, PlaybackArea.OUTPUT)
 
     @staticmethod
