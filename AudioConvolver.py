@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self._audio_areas = {
             PlaybackArea.INPUT: self._audio_input,
             PlaybackArea.IR: self._ir_input,
-            PlaybackArea.OUTPUT: self._output_audio
+            PlaybackArea.OUTPUT: self._output_audio_original
         }
 
         # Connect signals to UI widgets
@@ -285,9 +285,10 @@ class MainWindow(QMainWindow):
     def _adjust_gain(self, area: AreaManager, db: int = 0):
         area.gain_change = db
         self._change_waveform_gain(area, db)
-        if (self._audio_input.samplerate > 0
-                and self._ir_input.samplerate > 0):
-            self._convolve()
+        if area in (self._playback_manager.input_area, self._playback_manager.ir_area):
+            if (self._audio_input.samplerate > 0
+                    and self._ir_input.samplerate > 0):
+                self._convolve()
 
     def _change_waveform_gain(self, area: AreaManager, db_val: int):
         """Adjust the waveform gain and update the waveform."""
@@ -313,7 +314,7 @@ class MainWindow(QMainWindow):
                                            self._output_audio_original.samplerate)
                 else:
                     self._display_waveform(self._output_curve, self._output_audio.data,
-                                       self._output_audio_original.samplerate)
+                                       self._output_audio.samplerate)
 
     def _convolve(self):
         """Trigger convolution, save the output, and display its waveform."""
@@ -321,8 +322,9 @@ class MainWindow(QMainWindow):
         self._output_audio_original = _process(self._audio_input, self._ir_input)
         if self._output_audio_original is not None:
             self._output_audio_original.copy_data(self._output_audio)
-        self._display_waveform(self._output_curve, self._output_audio_original.data,
-                               self._output_audio_original.samplerate)
+            self._playback_manager.output_area.audio_file = self._output_audio
+        self._display_waveform(self._output_curve, self._output_audio.data,
+                               self._output_audio.samplerate)
         self.ui.graphicsView.addItem(self._output_cursor)
         sf.write("output.wav", self._output_audio.data, self._output_audio.samplerate)
         self._output_audio.file_path = "output.wav"
