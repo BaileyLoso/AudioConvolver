@@ -2,6 +2,7 @@ import soundfile as sf
 import numpy as np
 from scipy.signal import fftconvolve, resample, oaconvolve
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QErrorMessage
+from PySide6.QtCore import QStandardPaths
 
 
 class AudioFile:
@@ -16,8 +17,16 @@ class AudioFile:
         return f"AudioFile(file_path='{self.file_path}', samplerate={self.samplerate}, channels={self.channels})"
 
     def load_file(self, audio_copy):
-        self.file_path, _ = QFileDialog.getOpenFileName(None, "Select audio file", "", "Audio Files (*.wav *.mp3 *.flac)")
+        self.file_path, _ = QFileDialog.getOpenFileName(None,
+                                                        "Select audio file",
+                                                        "",
+                                                        "Audio Files (*.wav *.mp3 *.flac)")
 
+        # self.file_path, _ = QFileDialog.getOpenFileName(None,
+        #                                                 "Select audio file",
+        #                                                 QStandardPaths.writableLocation(
+        #                                                     QStandardPaths.StandardLocation.MusicLocation),
+        #                                                 "Audio Files (*.wav *.mp3 *.flac)")
         # Check if the file path is valid
         if self.file_path:
             try:
@@ -32,7 +41,6 @@ class AudioFile:
         # If the file path is invalid, return
         else:
             return
-        QMessageBox.information(None, "Success", f"Loaded file: {self.file_path}")
 
     def copy_data(self, dst):
         dst.file_path = self.file_path
@@ -110,7 +118,10 @@ class AudioConvolver:
         return output_audio
 
     def save_output(self, output_audio):
-        self.output_audio_path = QFileDialog.getSaveFileName(None, "Save output audio file", "", "Audio Files (*.wav *.mp3 *.flac)")[0]
+        self.output_audio_path = QFileDialog.getSaveFileName(None, "Save output audio file",
+                                                             QStandardPaths.writableLocation(
+                                                                 QStandardPaths.StandardLocation.DownloadLocation),
+                                                             "Audio Files (*.wav *.mp3 *.flac)")[0]
         if self.output_audio_path is None or self.output_audio_path == "":
             QErrorMessage(parent=None).showMessage("No output file path selected")
             return

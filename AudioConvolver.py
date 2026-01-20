@@ -126,23 +126,23 @@ class MainWindow(QMainWindow):
         self._audio_areas = {
             PlaybackArea.INPUT: self._audio_input,
             PlaybackArea.IR: self._ir_input,
-            PlaybackArea.OUTPUT: self._output_audio_original
+            PlaybackArea.OUTPUT: self._output_audio
         }
 
         # Connect signals to UI widgets
         self.ui.inputFileButton.clicked.connect(self._load_input_audio)
         self.ui.inputPlayButton.clicked.connect(self._toggle_input_playback)
         self.ui.inputRestartButton.clicked.connect(self._restart_playback)
-        self.ui.inputStopButton.clicked.connect(lambda: self._stop_playback(PlaybackArea.INPUT))
+        self.ui.inputStopButton.clicked.connect(lambda: self._stop_playback(self._playback_manager.input_area.area))
 
         self.ui.IRFileButton.clicked.connect(self._load_ir_audio)
         self.ui.IRPlayButton.clicked.connect(self._toggle_ir_playback)
         self.ui.IRRestartButton.clicked.connect(self._restart_playback)
-        self.ui.IRStopButton.clicked.connect(lambda: self._stop_playback(PlaybackArea.IR))
+        self.ui.IRStopButton.clicked.connect(lambda: self._stop_playback(self._playback_manager.ir_area.area))
 
         self.ui.outputPlayButton.clicked.connect(self._toggle_output_playback)
         self.ui.outputRestartButton.clicked.connect(self._restart_playback)
-        self.ui.outputStopButton.clicked.connect(lambda : self._stop_playback(PlaybackArea.OUTPUT))
+        self.ui.outputStopButton.clicked.connect(lambda : self._stop_playback(self._playback_manager.output_area.area))
 
         self.ui.inputDial.valueChanged.connect(
             lambda x: self._adjust_gain(self._playback_manager.input_area, x))
@@ -169,21 +169,21 @@ class MainWindow(QMainWindow):
     def _toggle_input_playback(self):
         if self._audio_input.file_path == "":
             return
-        self._reset_play_icon()
+        # self._reset_play_icon()
         self._playback_manager.toggle_play_pause2(self._audio_input, self._playback_manager.input_area)
         self._toggle_icon(self._playback_manager.input_area, self.ui.inputPlayButton)
 
     def _toggle_ir_playback(self):
         if self._ir_input.file_path == "":
             return
-        self._reset_play_icon()
+        # self._reset_play_icon()
         self._playback_manager.toggle_play_pause2(self._ir_input, self._playback_manager.ir_area)
         self._toggle_icon(self._playback_manager.ir_area, self.ui.IRPlayButton)
 
     def _toggle_output_playback(self):
         if self._audio_input.file_path == "" or self._ir_input.file_path == "":
             return
-        self._reset_play_icon()
+        # self._reset_play_icon()
         self._playback_manager.toggle_play_pause2(self._output_audio, self._playback_manager.output_area)
         if self._playback_manager.is_playing2(PlaybackArea.OUTPUT):
             self.ui.outputPlayButton.setIcon(self._icons.get("PAUSE"))
@@ -206,9 +206,8 @@ class MainWindow(QMainWindow):
             return
         cursor = self._cursors.get(area)
         self._reset_play_icon()
-        self._playback_manager.stop2(area)
         cursor.setValue(0)
-        print(f"Stopped playback for area: {area}")
+        self._playback_manager.stop2(area)
 
     def _restart_playback(self):
         curr_file = self._playback_manager.get_current_audio()
@@ -231,6 +230,10 @@ class MainWindow(QMainWindow):
         cursor = self._cursors.get(area)
         if cursor:
             cursor.setValue(0)
+        button = self._buttons.get(area)
+        if button:
+            button.setIcon(self._icons.get("PLAY"))
+
 
     def _clear_fields(self):
         self._playback_manager.stop_all2()
@@ -256,11 +259,6 @@ class MainWindow(QMainWindow):
         self.ui.InputPeekWidget.addItem(self._input_cursor)
         self._playback_manager.input_area.audio_file = self._audio_input
 
-        """Temp area_manager to test uninterrupted output playback"""
-        curr_area = self._playback_manager.get_current_area()
-        if curr_area is PlaybackArea.INPUT or curr_area is PlaybackArea.IR:
-            self._playback_manager.stop2(curr_area)
-
         # self._playback_manager.stop_all()
         if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
             self._convolve()
@@ -274,7 +272,7 @@ class MainWindow(QMainWindow):
         self._ir_input.load_file(self._ir_input_original)
         self._display_waveform(self._ir_curve, self._ir_input.data, self._ir_input.samplerate)
         self.ui.IRPeekWidget.addItem(self._ir_cursor)
-        self._playback_manager.stop_all2()
+        # self._playback_manager.stop_all2()
         if self._audio_input.samplerate > 0 and self._ir_input.samplerate > 0:
             self._convolve()
         file_path = self._ir_input.file_path
