@@ -10,7 +10,6 @@ Licensed under the MIT License
 
 import threading
 import time
-import AudioProcessing
 import numpy as np
 import queue as q
 import sounddevice as sd
@@ -54,6 +53,9 @@ class AreaManager:
         self.pause_start_time = None
         self.audio_file = None
         self.gain_change = 0
+        self.blocksize = 1024
+        self.buffersize = 20
+        self._q = q.Queue(maxsize=self.buffersize)
 
     def reset(self):
         self.position = 0.0
@@ -70,6 +72,7 @@ class AreaManager:
             self.sound_file.close()
             self.sound_file = None
         if self.fill_thread is not None:
+            self.fill_thread.join(timeout=0.5)
             self.fill_thread = None
 
 
@@ -121,7 +124,7 @@ class AudioPlaybackManager(QObject):
         """
         Callback function for sounddevice playback.
 
-        Borrowed from https://github.com/spatialaudio/python-sounddevice/blob/master/examples/playraw.py
+        Credit: https://github.com/spatialaudio/python-sounddevice/blob/master/examples/playraw.py
         """
 
         assert frames == self._blocksize
@@ -163,7 +166,6 @@ class AudioPlaybackManager(QObject):
 
     def _play2(self, audio_file, area_manager: AreaManager, parent=None):
         if audio_file is None or audio_file.data.size == 0:
-            QErrorMessage(parent).showMessage("No audio to play.")
             return
 
         if area_manager.is_paused and self._current_area == area_manager.area:
@@ -230,7 +232,6 @@ class AudioPlaybackManager(QObject):
 
         except Exception as e:
             print(f"Error during playback: {e}")
-            QErrorMessage(parent).showMessage(f"Error during playback: {e}")
 
     def _stream_finished(self, area: PlaybackArea):
         QTimer.singleShot(0, lambda: self.stop2(area))
@@ -279,8 +280,11 @@ class AudioPlaybackManager(QObject):
     def toggle_play_pause2(self, audio_file, area_manager: AreaManager):
         if area_manager.output_stream is not None and area_manager.output_stream.active:
             self._pause2(area_manager)
-        elif area_manager.output_stream is None or not area_manager.output_stream.active:
+        elif area_manager.output_stream is None:
+            if area_manager is not self._curr_area_manager:
+                self._stop_and_save_position2(self._curr_area_manager)
             self._play2(audio_file, area_manager)
+
 
     def stop2(self, area) -> None:
         if isinstance(area, AreaManager):
@@ -294,12 +298,13 @@ class AudioPlaybackManager(QObject):
                 return
 
         self._stop_fill_thread = True
-        area_manager.reset()
-        self._update_timer.stop()
+        if area_manager.output_stream is not None:
+            self._update_timer.stop()
         if self._current_area == area:
             self._current_area = None
             self._current_audio = None
         self._session_offset_sec = 0.0
+        area_manager.reset()
         self._clear_queue()
         self.playback_finished.emit(area)
 
@@ -348,8 +353,6 @@ class AudioPlaybackManager(QObject):
                 data = f.read(self._blocksize, always_2d=True)
                 if not len(data):
                     break
-                if data.ndim == 1:
-                    data = data.reshape(-1, f.channels)
                 self._q.put_nowait(data)
 
             area_manager.output_stream = sd.OutputStream(
