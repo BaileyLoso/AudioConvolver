@@ -20,14 +20,7 @@ class AudioFile:
         self.file_path, _ = QFileDialog.getOpenFileName(None,
                                                         "Select audio file",
                                                         "",
-                                                        "Audio Files (*.wav *.mp3 *.flac)")
-
-        # self.file_path, _ = QFileDialog.getOpenFileName(None,
-        #                                                 "Select audio file",
-        #                                                 QStandardPaths.writableLocation(
-        #                                                     QStandardPaths.StandardLocation.MusicLocation),
-        #                                                 "Audio Files (*.wav *.mp3 *.flac)")
-        # Check if the file path is valid
+                                                        "Audio Files (*.wav *.mp3 *.flac *.aiff)")
         if self.file_path:
             try:
                 self.data, self.samplerate = sf.read(self.file_path, always_2d=True)
@@ -121,7 +114,7 @@ class AudioConvolver:
         self.output_audio_path = QFileDialog.getSaveFileName(None, "Save output audio file",
                                                              QStandardPaths.writableLocation(
                                                                  QStandardPaths.StandardLocation.DownloadLocation),
-                                                             "Audio Files (*.wav *.mp3 *.flac)")[0]
+                                                             "Audio Files (*.wav *.mp3 *.flac *.aiff)")[0]
         if self.output_audio_path is None or self.output_audio_path == "":
             QErrorMessage(parent=None).showMessage("No output file path selected")
             return

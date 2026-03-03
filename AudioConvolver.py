@@ -285,7 +285,7 @@ class MainWindow(QMainWindow):
     def _adjust_gain(self, area: AreaManager, db: int = 0):
         area.gain_change = db
         self._change_waveform_gain(area, db)
-        if area in (self._playback_manager.input_area, self._playback_manager.ir_area):
+        if area != self._playback_manager.output_area:
             if (self._audio_input.samplerate > 0
                     and self._ir_input.samplerate > 0):
                 self._convolve()
